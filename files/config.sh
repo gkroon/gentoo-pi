@@ -264,4 +264,6 @@ if enable_services ; then
 fi
 
 echo
-echo "Post deployment finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\"."
+echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\"."
+rm -- "$0"
+exit 0

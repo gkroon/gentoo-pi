@@ -54,8 +54,10 @@ Do you wish to continue formatting this device? [yes|no] yes
 >>> Installing the latest binary Raspberry Pi kernel ...... [OK]
 >>> Synchronising cached writes to card and eject card .... [OK]
 
-Installation succeeded. Try booting your Raspberry Pi and login as root. Then proceed with the final configuration by launching "/root/rpi-gentoo-config.sh".
+Installation succeeded. Try booting your Raspberry Pi , login as root, and run "/root/config.sh" to finish the installation.
 ```
+
+Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and the SSH key you specified when running "install.sh" from your host.
 
 ## Dependencies
 1. curl (net-misc/curl)

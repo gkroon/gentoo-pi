@@ -320,15 +320,15 @@ configure_gentoo() {
     exit 1
   fi
 
-  # Copying over rpi-gentoo-updater.sh and writing rpi-gentoo-config.sh
-  if [ -f "rpi-gentoo-updater.sh" ]; then
-    cp rpi-gentoo-updater.sh "${MOUNTED_ROOT}/root/rpi-gentoo-updater.sh"
-    chmod 0700 "${MOUNTED_ROOT}/root/rpi-gentoo-updater.sh"
+  # Copying updater.sh and writing config.sh
+  if [ -f "files/updater.sh" ]; then
+    cp files/updater.sh "${MOUNTED_ROOT}/root/updater.sh"
+    chmod 0700 "${MOUNTED_ROOT}/root/updater.sh"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find local rpi-gentoo-updater.sh"
+    echo -e "[${LRED}FAILED${NC}]: could not find files/updater.sh or could not write to ${MOUNTED_ROOT}/root/"
     exit 1
   fi
-  if [ -f "rpi-gentoo-config.sh" ]; then
+  if [ -f "files/config.sh" ]; then
     awk '
       { print }
       /Collected vars will be hardcoded after this line/ {
@@ -337,11 +337,11 @@ configure_gentoo() {
       print "\tNEW_USER=\"'"${NEW_USER}"'\""
       print "\tNEW_USER_FULL_NAME=\"'"${NEW_USER_FULL_NAME}"'\""
       print "\tSSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
-      }' rpi-gentoo-config.sh > "${MOUNTED_ROOT}/root/rpi-gentoo-config.out"
-    mv "${MOUNTED_ROOT}/root/rpi-gentoo-config.out" "${MOUNTED_ROOT}/root/rpi-gentoo-config.sh"
-    chmod 0700 "${MOUNTED_ROOT}/root/rpi-gentoo-config.sh"
+      }' files/config.sh > "${MOUNTED_ROOT}/root/config.out"
+    mv "${MOUNTED_ROOT}/root/config.out" "${MOUNTED_ROOT}/root/config.sh"
+    chmod 0700 "${MOUNTED_ROOT}/root/config.sh"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find local rpi-gentoo-config.sh"
+    echo -e "[${LRED}FAILED${NC}]: could not find files/config.sh or could not write to ${MOUNTED_ROOT}/root/"
     exit 1
   fi
 }
@@ -413,4 +413,4 @@ if eject_card ; then
 fi
 
 echo
-echo "Installation succeeded. Try booting your Raspberry Pi and login as root. Then proceed with the final configuration by launching \"/root/rpi-gentoo-config.sh\"."
+echo "Installation succeeded. Try booting your Raspberry Pi, login as root, and run \"/root/config.sh\" to finish the installation."
