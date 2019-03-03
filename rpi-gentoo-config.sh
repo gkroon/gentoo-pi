@@ -235,11 +235,11 @@ if enable_eth0 ; then
 fi
 
 echo -en '>>> Creating new user ............................................. '
-echo
 if new_user ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
+echo
 echo -e '--- Changing passwd for new user ---'
 echo
 new_user_passwd
@@ -248,7 +248,9 @@ echo
 echo -e '--- Updating Gentoo ---'
 echo
 if update_gentoo ; then
-	echo -e "[${LGREEN}OK${NC}]"
+	echo
+	echo -e '--- Finished updating Gentoo ---'
+	echo
 fi
 
 echo -en '>>> Installing packages ........................................... '
