@@ -336,7 +336,7 @@ configure_gentoo() {
   if [ -f "files/config.sh" ]; then
     awk '
       { print }
-      /Collected vars will be hardcoded after this line/ {
+      /Collected vars from running the installation script will be hardcoded after this line/ {
       print "\tDATE=\"'"${DATE}"'\""
       print "\tHOSTNAME=\"'"${HOSTNAME}"'\""
       print "\tNEW_USER=\"'"${NEW_USER}"'\""
