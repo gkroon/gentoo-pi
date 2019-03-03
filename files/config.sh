@@ -104,7 +104,7 @@ new_user_passwd() {
 }
 
 update_gentoo() {
-  if ! /root/rpi-gentoo-updater.sh; then
+  if ! /root/updater.sh; then
   	echo -e "[${LRED}FAILED${NC}]: could not update Gentoo"
     exit 1
   fi
