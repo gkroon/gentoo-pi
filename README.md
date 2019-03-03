@@ -5,7 +5,7 @@ This script fetches an armv7a hardfp stage3 tarball, verifies its authenticity (
 I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
 
 1. Not use it;
-2. Show me how to make it better.
+2. Show me how to make it better (you are encouraged!).
 
 ## Usage
 ```
@@ -70,8 +70,10 @@ If you wish to contribute (you are encouraged!), feel free to create issues, or 
 
 ## To do
 1. Pull latest armv7a hardfp stage3 tarball automatically
-2. Add argument for encrypted swap with random IV at boot
-3. Add argument for encrypted root (LUKS w/ GPG key)
+2. Compiling kernel from source
+3. Update files/update.sh to automatically remove old kernel modules upon kernel upgrade
+4. Add argument for encrypted swap with random IV at boot
+5. Add argument for encrypted root (LUKS w/ GPG key)
 
 ## Ideas
 1. Ask again for missing arguments if not provided?
