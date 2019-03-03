@@ -12,64 +12,64 @@
 
 # Help function
 print_help() {
-	echo "Gentoo Raspberry Pi installer, version 0.1"
-    echo "Usage: $0 [option] ..." >&2
-    echo
-    echo "  -h, --help         display this help and exit"
-    echo "  -d, --device       raw device to write to (e.g. /dev/sde)"
-    echo "  -t, --tarball-url  specify the stage3 tarball url (e.g. "
-    echo "                     http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
-    echo "  -H, --hostname     set hostname (e.g. gentoo)"
-    echo "  -T, --timezone     set timezone (e.g. Europe/Amsterdam)"
-    echo "  -u, --username     specify your preferred username (e.g. larry)"
-    echo "  -f, --fullname     specify your full name (e.g. \"Larry the Cow\")"
-    echo "  -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
-    echo
-    exit 0
+  echo "Gentoo Raspberry Pi installer, version 0.1"
+  echo "Usage: $0 [option] ..." >&2
+  echo
+  echo "  -h, --help         display this help and exit"
+  echo "  -d, --device       raw device to write to (e.g. /dev/sde)"
+  echo "  -t, --tarball-url  specify the stage3 tarball url (e.g. "
+  echo "                     http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
+  echo "  -H, --hostname     set hostname (e.g. gentoo)"
+  echo "  -T, --timezone     set timezone (e.g. Europe/Amsterdam)"
+  echo "  -u, --username     specify your preferred username (e.g. larry)"
+  echo "  -f, --fullname     specify your full name (e.g. \"Larry the Cow\")"
+  echo "  -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
+  echo
+  exit 0
 }
 
 get_args_vars() {
-    while [[ "$1" ]]; do
-        case "$1" in
-            -h|--help) print_help ;;
-            -d|--device) SDCARD_DEVICE="${2}" ;;
-            -t|--tarball-url) TARBALL="${2}" ;;
-            -H|--hostname) HOSTNAME="${2}" ;;
-            -T|--timezone) TIMEZONE="${2}" ;;
-            -u|--username) NEW_USER="${2}" ;;
-            -f|--fullname) NEW_USER_FULL_NAME="${2}" ;;
-            -s|--ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
-        esac
-        shift
-    done
+  while [[ "$1" ]]; do
+    case "$1" in
+      -h|--help) print_help ;;
+      -d|--device) SDCARD_DEVICE="${2}" ;;
+      -t|--tarball-url) TARBALL="${2}" ;;
+      -H|--hostname) HOSTNAME="${2}" ;;
+      -T|--timezone) TIMEZONE="${2}" ;;
+      -u|--username) NEW_USER="${2}" ;;
+      -f|--fullname) NEW_USER_FULL_NAME="${2}" ;;
+      -s|--ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
+    esac
+    shift
+  done
 
-	# The following partitions will be created, on "${SDCARD_DEVICE}"
-	SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
-	SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}2"
-	SDCARD_DEVICE_ROOT="${SDCARD_DEVICE}3"
+  # The following partitions will be created, on "${SDCARD_DEVICE}"
+  SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
+  SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}2"
+  SDCARD_DEVICE_ROOT="${SDCARD_DEVICE}3"
 
   # Work directory to download archives to and to unpack from
   WORKDIR="/tmp/stage3"
 
-	# The following path will be used on your workstation to mount the newly
-	# formatted "${SDCARD_DEVICE_ROOT}". Then, "${SDCARD_DEVICE_BOOT}" is mounted
-	# on its /boot directory.
-	MOUNTED_ROOT="/mnt/gentoo"
-	MOUNTED_BOOT="${MOUNTED_ROOT}/boot"
+  # The following path will be used on your workstation to mount the newly
+  # formatted "${SDCARD_DEVICE_ROOT}". Then, "${SDCARD_DEVICE_BOOT}" is mounted
+  # on its /boot directory.
+  MOUNTED_ROOT="/mnt/gentoo"
+  MOUNTED_BOOT="${MOUNTED_ROOT}/boot"
 
-	# The official Raspberry Pi firmware will be git pulled to "${FIRMWARE_DIR}",
-	# and will then be installed on the system. You can also compile your own
-	# kernel, but I have not yet found/written a solid Raspberry Pi kernel config.
-	FIRMWARE_DIR="${MOUNTED_ROOT}/opt/firmware"
+  # The official Raspberry Pi firmware will be git pulled to "${FIRMWARE_DIR}",
+  # and will then be installed on the system. You can also compile your own
+  # kernel, but I have not yet found/written a solid Raspberry Pi kernel config.
+  FIRMWARE_DIR="${MOUNTED_ROOT}/opt/firmware"
 
-	# The following entries will be inserted in fstab on the SD card
-	RPI_DEVICE="/dev/mmcblk0"
-	RPI_DEVICE_BOOT="${RPI_DEVICE}p1"
-	RPI_DEVICE_SWAP="${RPI_DEVICE}p2"
-	RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
+  # The following entries will be inserted in fstab on the SD card
+  RPI_DEVICE="/dev/mmcblk0"
+  RPI_DEVICE_BOOT="${RPI_DEVICE}p1"
+  RPI_DEVICE_SWAP="${RPI_DEVICE}p2"
+  RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
 
-	# Get current date from host. We will use NTP later on
-	DATE=$(date --rfc-3339=date)
+  # Get current date from host. We will use NTP later on
+  DATE=$(date --rfc-3339=date)
 
   # Terminal colours
   GREEN='\033[0;32m'
@@ -114,11 +114,11 @@ test_args() {
 }
 
 prepare_card() {
-	# Test if "${SDCARD_DEVICE}" really exists
-	if [ ! -b "${SDCARD_DEVICE}" ]; then
-		echo "${SDCARD_DEVICE} not found."
-		exit 1
-	fi
+  # Test if "${SDCARD_DEVICE}" really exists
+  if [ ! -b "${SDCARD_DEVICE}" ]; then
+    echo "${SDCARD_DEVICE} not found."
+    exit 1
+  fi
 
   # Unmount if mounted
   if [ "mount | grep ${SDCARD_DEVICE}1" ]; then
@@ -159,14 +159,14 @@ prepare_card() {
   fi
 
   # Mount root and boot partitions for installation
-	rm -rf "${MOUNTED_ROOT}"
-	mkdir "${MOUNTED_ROOT}"
-	if ! mount "${SDCARD_DEVICE_ROOT}" "${MOUNTED_ROOT}"; then
+  rm -rf "${MOUNTED_ROOT}"
+  mkdir "${MOUNTED_ROOT}"
+  if ! mount "${SDCARD_DEVICE_ROOT}" "${MOUNTED_ROOT}"; then
     echo -e "[${LRED}FAILED${NC}]: mounting ${SDCARD_DEVICE_ROOT} on ${MOUNTED_ROOT} failed"
     exit 1
   fi
-	mkdir "${MOUNTED_BOOT}"
-	if ! mount "${SDCARD_DEVICE_BOOT}" "${MOUNTED_BOOT}"; then
+  mkdir "${MOUNTED_BOOT}"
+  if ! mount "${SDCARD_DEVICE_BOOT}" "${MOUNTED_BOOT}"; then
     echo -e "[${LRED}FAILED${NC}]: mounting ${SDCARD_DEVICE_BOOT} on ${MOUNTED_BOOT} failed"
     exit 1
   fi
@@ -180,12 +180,12 @@ download_stage3() {
 
   # Downloading stage3 tarball and signatures
   if [ ! -f "${WORKDIR}/${TARBALL##*/}" ]; then
-  	if [ "curl -Is ${TARBALL}" ]; then
-  		wget -q "${TARBALL}" -O ${WORKDIR}/${TARBALL##*/}
-  	else
-  		echo -e "[${LRED}FAILED${NC}]: ${TARBALL} not found"
-  		exit 1
-  	fi
+    if [ "curl -Is ${TARBALL}" ]; then
+      wget -q "${TARBALL}" -O ${WORKDIR}/${TARBALL##*/}
+    else
+      echo -e "[${LRED}FAILED${NC}]: ${TARBALL} not found"
+      exit 1
+    fi
   fi
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.CONTENTS" ]; then
     if [ "curl -Is ${TARBALL}.CONTENTS" ]; then
@@ -240,11 +240,11 @@ install_gentoo() {
 }
 
 install_portage() {
-	# Installing Gentoo
+  # Installing Gentoo
   if [ ! -f "${WORKDIR}/portage-latest.tar.bz2" ]; then
     wget -q "http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2" -O "${WORKDIR}/portage-latest.tar.bz2"
   fi
-	if ! tar xfpj ${WORKDIR}/portage-latest.tar.bz2 -C "${MOUNTED_ROOT}/usr/"; then
+  if ! tar xfpj ${WORKDIR}/portage-latest.tar.bz2 -C "${MOUNTED_ROOT}/usr/"; then
     echo -e "[${LRED}FAILED${NC}]: could not untar ${WORKDIR}/portage-latest.tar.bz2 to ${MOUNTED_ROOT}/usr/"
     exit 1
   fi
@@ -252,7 +252,7 @@ install_portage() {
 }
 
 configure_gentoo() {
-	# Editing "${MOUNTED_ROOT}/etc/portage/make.conf" (tweak if desired)
+  # Editing "${MOUNTED_ROOT}/etc/portage/make.conf" (tweak if desired)
   if [ -f "${MOUNTED_ROOT}/etc/portage/make.conf" ]; then
     sed -i 's/^CFLAGS.*/CFLAGS="-O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"/' "${MOUNTED_ROOT}/etc/portage/make.conf"
     echo 'EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --jobs=4 --load-average=4"' >> "${MOUNTED_ROOT}/etc/portage/make.conf"
@@ -261,7 +261,7 @@ configure_gentoo() {
     exit 1
   fi
 
-	# Configuring /etc/fstab
+  # Configuring /etc/fstab
   if [ -f "${MOUNTED_ROOT}/etc/fstab" ]; then
     sed -e '/\/dev/ s/^#*/#/' -i "${MOUNTED_ROOT}/etc/fstab" # uncomments existing entries
     echo "proc           /proc proc defaults         0 0" >> "${MOUNTED_ROOT}/etc/fstab"
@@ -273,7 +273,7 @@ configure_gentoo() {
     exit 1
   fi
 
-	# Setting date and time zone
+  # Setting date and time zone
   if [ -f "${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}" ]; then
     cp "${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${MOUNTED_ROOT}/etc/localtime"
     echo "${TIMEZONE}" > "${MOUNTED_ROOT}/etc/timezone"
@@ -282,7 +282,7 @@ configure_gentoo() {
     exit 1
   fi
 
-	# Clearing root passwd
+  # Clearing root passwd
   if [ -f "${MOUNTED_ROOT}/etc/shadow" ]; then
     sed -i 's/^root:.*/root::::::::/' "${MOUNTED_ROOT}/etc/shadow"
   else
@@ -290,7 +290,7 @@ configure_gentoo() {
     exit 1
   fi
 
-	# Adding your SSH pubkey to authorized_keys:
+  # Adding your SSH pubkey to authorized_keys:
   if [ ! -d "${MOUNTED_ROOT}/root/.ssh" ]; then
     mkdir "${MOUNTED_ROOT}/root/.ssh"
   fi
@@ -303,7 +303,7 @@ configure_gentoo() {
     exit 1
   fi
 
-	# Copying over rpi-gentoo-updater.sh and writing rpi-gentoo-config.sh
+  # Copying over rpi-gentoo-updater.sh and writing rpi-gentoo-config.sh
   if [ -f "rpi-gentoo-updater.sh" ]; then
     cp rpi-gentoo-updater.sh "${MOUNTED_ROOT}/root/rpi-gentoo-updater.sh"
     chmod 0700 "${MOUNTED_ROOT}/root/rpi-gentoo-updater.sh"
@@ -319,7 +319,7 @@ configure_gentoo() {
       print "\tHOSTNAME=\"'"${HOSTNAME}"'\""
       print "\tNEW_USER=\"'"${NEW_USER}"'\""
       print "\tNEW_USER_FULL_NAME=\"'"${NEW_USER_FULL_NAME}"'\""
-    	print "\tSSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
+      print "\tSSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
       }' rpi-gentoo-config.sh > "${MOUNTED_ROOT}/root/rpi-gentoo-config.out"
     mv "${MOUNTED_ROOT}/root/rpi-gentoo-config.out" "${MOUNTED_ROOT}/root/rpi-gentoo-config.sh"
     chmod 0700 "${MOUNTED_ROOT}/root/rpi-gentoo-config.sh"
@@ -330,23 +330,23 @@ configure_gentoo() {
 }
 
 install_rpi_kernel() {
-	# Pulling and installing Raspberry Pi kernel and modules.
-	if ! git clone --depth 1 git://github.com/raspberrypi/firmware/ "${FIRMWARE_DIR}" >/dev/null 2>&1; then
+  # Pulling and installing Raspberry Pi kernel and modules.
+  if ! git clone --depth 1 git://github.com/raspberrypi/firmware/ "${FIRMWARE_DIR}" >/dev/null 2>&1; then
     echo -e "[${LRED}FAILED${NC}]: could not git clone Raspberry Pi firmware to ${FIRMWARE_DIR}"
     exit 1
   fi
-	rsync -a "${FIRMWARE_DIR}/boot/" "${MOUNTED_ROOT}/boot/"
-	rsync -a "${FIRMWARE_DIR}/modules/" "${MOUNTED_ROOT}/lib/modules/"
+  rsync -a "${FIRMWARE_DIR}/boot/" "${MOUNTED_ROOT}/boot/"
+  rsync -a "${FIRMWARE_DIR}/modules/" "${MOUNTED_ROOT}/lib/modules/"
 
-	# Boot options
-	echo "ipv6.disable=0 selinux=0 plymouth.enable=0 smsc95xx.turbo_mode=N dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=${RPI_DEVICE_ROOT} rootfstype=ext4 elevator=noop rootwait" > "${MOUNTED_BOOT}/cmdline.txt"
+  # Boot options
+  echo "ipv6.disable=0 selinux=0 plymouth.enable=0 smsc95xx.turbo_mode=N dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=${RPI_DEVICE_ROOT} rootfstype=ext4 elevator=noop rootwait" > "${MOUNTED_BOOT}/cmdline.txt"
 }
 
 eject_card() {
-	umount "${MOUNTED_BOOT}"
-	umount "${MOUNTED_ROOT}"
-	sync
-	eject "${SDCARD_DEVICE}"
+  umount "${MOUNTED_BOOT}"
+  umount "${MOUNTED_ROOT}"
+  sync
+  eject "${SDCARD_DEVICE}"
 }
 
 get_args_vars "$@"
