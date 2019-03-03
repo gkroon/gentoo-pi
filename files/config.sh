@@ -1,18 +1,58 @@
 #!/bin/sh
 
 get_vars() {
-  # Collected vars will be hardcoded after this line
+  # Collected vars from running the installation script will be hardcoded after this line
   LANIP="$(ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2}')"
 }
 
 passwd_root() {
+  # Changiung root passwd
   if ! passwd root; then
   	echo -e "${LRED}* FAILED${NC}: could not change root's passwd"
     exit 1
   fi
 }
 
+new_user() {
+  # Adding new user
+  if ! useradd -m -G adm,audio,cdrom,input,users,video,wheel -s /bin/bash -c "${NEW_USER_FULL_NAME}" ${NEW_USER}; then
+    echo -e "[${LRED}FAILED${NC}]: could not add new user"
+    exit 1
+  fi
+
+  if [ ! -d "/home/${NEW_USER}/.ssh" ]; then
+    mkdir /home/${NEW_USER}/.ssh
+  fi
+
+  # Adding SSH public key, if specified
+  if [ -f "/root/.ssh/authorized_keys" ]; then
+    if ! cp "/root/.ssh/authorized_keys" "/home/${NEW_USER}/.ssh/authorized_keys"; then
+      echo -e "[${LRED}FAILED${NC}]: could not copy /root/.ssh/authorized_keys to /home/${NEW_USER}/.ssh/authorized_keys"
+      exit 1
+    fi
+
+    if ! chown ${NEW_USER}:${NEW_USER} "/home/${NEW_USER}/.ssh/authorized_keys"; then
+    echo -e "[${LRED}FAILED${NC}]: could not chown /home/${NEW_USER}/.ssh/authorized_keys"
+    exit 1
+    fi
+
+    if ! chmod 0600 "/home/${NEW_USER}/.ssh/authorized_keys"; then
+      echo -e "[${LRED}FAILED${NC}]: could not chmod 0600 /home/${NEW_USER}/.ssh/authorized_keys"
+      exit 1
+    fi
+  fi
+}
+
+new_user_passwd() {
+  # Changing new user passwd
+  if ! passwd ${NEW_USER}; then
+    echo -e "${LRED}* FAILED${NC}: could not change new user's passwd"
+    exit 1
+  fi
+}
+
 setting_hostname() {
+  # Setting hostname
   if ! echo "hostname=\"${HOSTNAME}\"" > /etc/conf.d/hostname; then
   	echo -e "[${LRED}FAILED${NC}]: could not set hostname"
     exit 1
@@ -70,100 +110,25 @@ enable_eth0() {
   fi
 }
 
-new_user() {
-  if ! useradd -m -G adm,audio,cdrom,input,users,video,wheel -s /bin/bash -c "${NEW_USER_FULL_NAME}" ${NEW_USER}; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add new user"
-    exit 1
-  fi
-
-  if [ ! -d "/home/${NEW_USER}/.ssh" ]; then
-  	mkdir /home/${NEW_USER}/.ssh
-  fi
-
-  if ! cp "/root/.ssh/authorized_keys" "/home/${NEW_USER}/.ssh/authorized_keys"; then
-  	echo -e "[${LRED}FAILED${NC}]: could not copy /root/.ssh/authorized_keys to /home/${NEW_USER}/.ssh/authorized_keys"
-    exit 1
-  fi
-
-  if ! chown ${NEW_USER}:${NEW_USER} "/home/${NEW_USER}/.ssh/authorized_keys"; then
-  	echo -e "[${LRED}FAILED${NC}]: could not chown /home/${NEW_USER}/.ssh/authorized_keys"
-    exit 1
-  fi
-
-  if ! chmod 0600 "/home/${NEW_USER}/.ssh/authorized_keys"; then
-  	echo -e "[${LRED}FAILED${NC}]: could not chmod 0600 /home/${NEW_USER}/.ssh/authorized_keys"
-    exit 1
-  fi
-}
-
-new_user_passwd() {
-  if ! passwd ${NEW_USER}; then
-  	echo -e "${LRED}* FAILED${NC}: could not change new user's passwd"
-    exit 1
-  fi
-}
-
-update_gentoo() {
-  if ! /root/updater.sh; then
-  	echo -e "[${LRED}FAILED${NC}]: could not update Gentoo"
+sync_portage() {
+  if ! emerge-webrsync; then
+  	echo -e "[${LRED}FAILED${NC}]: emerge-webrsync failed, aborting update for safety"
     exit 1
   fi
 }
 
 install_packages() {
-  # Emerge portage tools
+  # Emerging a select few packages everybody can benefit from
   if ! emerge --ask --verbose \
-    app-portage/genlop \
-    app-portage/gentoolkit; then
-    	echo -e "[${LRED}FAILED${NC}]: could not install Portage tools"
-    	exit 1
-  fi
-
-  # Add global USE flags. Change these to your own desire.
-  if ! euse -E zsh-completion; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add global USE flags"
-    exit 1
-  fi
-
-  # Emerging misc packages. Change these to your own desire.
-  if ! emerge --ask --verbose \
-    app-admin/eclean-kernel \
-    app-admin/pass \
     app-admin/sudo \
-    app-editors/neovim \
-    app-misc/neofetch \
-    app-misc/screen \
-    app-portage/eix \
-    app-shells/zsh \
-    app-shells/zsh-completions \
-    dev-vcs/git \
-    mail-client/neomutt \
-    net-analyzer/fail2ban \
-    net-dns/ldns-utils \
-    net-dns/unbound \
-    net-misc/dhcpcd \
-    net-misc/ntp \
-    sys-apps/mlocate \
-    sys-process/htop \
-    sys-process/lsof; then
+    net-misc/ntp; then
     	echo -e "[${LRED}FAILED${NC}]: could not install packages"
     	exit 1
   fi
 }
 
 configure_packages() {
-  # Setting favourite editor. Change this to your own favourite.
-  if ! eselect editor set /usr/bin/nvim; then
-  	echo -e "[${LRED}FAILED${NC}]: could not change favourite editor"
-    exit 1
-  fi
-
-  if ! source /etc/profile; then
-  	echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
-    exit 1
-  fi
-
-  # Editing sudoers file to grant users in 'wheel' sudo privileges
+  # Editing sudoers file to grant users in group wheel sudo privileges
   if ! echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers; then
   	echo -e "[${LRED}FAILED${NC}]: could not grant group wheel sudo privileges"
     exit 1
@@ -171,11 +136,6 @@ configure_packages() {
 }
 
 enable_services() {
-  if ! rc-update add dhcpcd default; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service dhcpcd to runlevel default"
-    exit 1
-  fi
-
   if ! rc-update add ntp-client default; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service ntp-client to runlevel default"
     exit 1
@@ -183,16 +143,6 @@ enable_services() {
 
   if ! rc-update add sshd default; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
-    exit 1
-  fi
-
-  if ! rc-update add unbound default; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service unbound to runlevel default"
-    exit 1
-  fi
-
-  if ! rc-service dhcpcd start; then
-  	echo -e "[${LRED}FAILED${NC}]: could not start service dhcpcd"
     exit 1
   fi
 
@@ -205,11 +155,6 @@ enable_services() {
   	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
     exit 1
   fi
-
-  if ! rc-service unbound start; then
-  	echo -e "[${LRED}FAILED${NC}]: could not start service unbound"
-    exit 1
-  fi
 }
 
 get_vars
@@ -217,6 +162,17 @@ get_vars
 echo -e '--- Changing passwd for root ---'
 echo
 passwd_root
+echo
+
+echo -en '>>> Creating new user ............................................. '
+if new_user ; then
+  echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo
+echo -e '--- Changing passwd for new user ---'
+echo
+new_user_passwd
 echo
 
 echo -en '>>> Setting hostname .............................................. '
@@ -229,28 +185,14 @@ if setting_date ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en '>>> Enabling eth0 ................................................. '
+echo -en '>>> Enabling eth0 and getting a DHCP lease ........................ '
 if enable_eth0 ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en '>>> Creating new user ............................................. '
-if new_user ; then
-	echo -e "[${LGREEN}OK${NC}]"
-fi
-
-echo
-echo -e '--- Changing passwd for new user ---'
-echo
-new_user_passwd
-echo
-
-echo -e '--- Updating Gentoo ---'
-echo
-if update_gentoo ; then
-	echo
-	echo -e '--- Finished updating Gentoo ---'
-	echo
+echo -en '>>> Synchronising Portage ......................................... '
+if sync_portage ; then
+  echo -e "[${LGREEN}OK${NC}]"
 fi
 
 echo -en '>>> Installing packages ........................................... '
@@ -264,6 +206,10 @@ if enable_services ; then
 fi
 
 echo
-echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\"."
+if [ -f "/home/${NEW_USER}/.ssh/authorized_keys" ]; then
+  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\". You can maintain your system up-to-date by executing \"/root/update.sh\" as root."
+else
+  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP}. You can maintain your system up-to-date by executing \"/root/update.sh\" as root."
+fi
 rm -- "$0"
 exit 0

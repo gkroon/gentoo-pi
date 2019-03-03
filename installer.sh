@@ -23,7 +23,7 @@ print_help() {
   echo "  -t, --timezone     set timezone (e.g. Europe/Amsterdam)"
   echo "  -u, --username     specify your preferred username (e.g. larry)"
   echo "  -f, --fullname     specify your full name (e.g. \"Larry the Cow\")"
-  echo "  -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
+  echo "  -s, --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
   echo
   exit 0
 }
@@ -115,12 +115,11 @@ test_args() {
     exit 1
   fi
 
-  if [ ! -n "${SSH_PUBKEY}" ]; then
-    echo "-s|--ssh-pubkey no set. Exiting..."
-    exit 1
-  elif [[ $(file "${SSH_PUBKEY}") != *OpenSSH*public\ key ]]; then
-    echo "Invalid SSH public key. Exiting..."
-    exit 1
+  if [ -n "${SSH_PUBKEY}" ]; then
+    if [[ $(file "${SSH_PUBKEY}") != *OpenSSH*public\ key ]]; then
+      echo "Invalid SSH public key. Exiting..."
+      exit 1
+    fi
   fi
 }
 
@@ -321,12 +320,9 @@ configure_gentoo() {
     mkdir "${MOUNTED_ROOT}/root/.ssh"
   fi
 
-  if [ -f "${SSH_PUBKEY}" ]; then
+  if [ -n "${SSH_PUBKEY}" ]; then
     cat "${SSH_PUBKEY}" > "${MOUNTED_ROOT}/root/.ssh/authorized_keys"
     chmod 0600 "${MOUNTED_ROOT}/root/.ssh/authorized_keys"
-  else
-    echo -e "[${LRED}FAILED${NC}]: could not find ${SSH_PUBKEY}"
-    exit 1
   fi
 
   # Copying updater.sh and writing config.sh
