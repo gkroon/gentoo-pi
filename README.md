@@ -1,20 +1,20 @@
-# Script to install Gentoo on a Raspberry Pi
-This script fetches an ARM stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once succefully booted and logged into root to finish the installation.
+# Script to install Gentoo on a Raspberry Pi 2/3
+This script fetches an armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once succefully booted and logged into root to finish the installation.
 
 ## Full disclosure
-I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi. And you're probably right, so feel free to:
+I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
 
 1. Not use it;
 2. Show me how to make it better.
 
 ## Usage
 ```
-$ ./rpi-gentoo-install.sh -h
+$ ./install.sh -h
 Gentoo Raspberry Pi installer, version 0.1
-Usage: ./rpi-gentoo-install.sh [option] ...
+Usage: ./install.sh [option] ...
 
   -h, --help         display this help and exit
-  -d, --device       raw device to write to (e.g. /dev/sde)
+  -d, --device       raw device to write to (e.g. /dev/sdd)
   -t, --tarball-url  specify the stage3 tarball url (e.g. 
                      http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)
   -H, --hostname     set hostname (e.g. gentoo)
@@ -28,7 +28,7 @@ Usage: ./rpi-gentoo-install.sh [option] ...
 ## Example
 
 ```
-# ./rpi-gentoo-install.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
+# ./install.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
 
 * WARNING: This will format /dev/sdd:
 
@@ -70,7 +70,6 @@ If you wish to contribute (you are encouraged!), feel free to create issues, or 
 ## To do
 
 1. Pull latest armv7a hardfp stage3 tarball automatically
-2. Remove rpi-gentoo-config.sh after it has succesfully run
 
 ## Ideas
 1. Ask again for missing arguments if not provided?
