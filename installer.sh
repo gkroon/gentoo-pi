@@ -344,6 +344,12 @@ configure_gentoo() {
     echo -e "[${LRED}FAILED${NC}]: could not find files/config.sh or could not write to ${MOUNTED_ROOT}/root/"
     exit 1
   fi
+
+  # Comment out the s0 console (serial) for fix message in dmesg: "INIT: Id" s0 "respawning too fast".
+  if ! sed -e '/^s0:.*/ s/^#*/#/' -i "${MOUNTED_ROOT}/etc/inittab"; then
+    echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/inittab"
+    exit 1
+  fi
 }
 
 install_rpi_kernel() {

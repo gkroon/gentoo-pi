@@ -9,9 +9,9 @@ I'm not a developer by any means, and you may find this repository a comical att
 
 ## Usage
 ```
-$ ./install.sh -h
+$ ./installer.sh -h
 Gentoo Raspberry Pi installer, version 0.1
-Usage: ./install.sh [option] ...
+Usage: ./installer.sh [option] ...
 
   -h, --help         display this help and exit
   -d, --device       raw device to write to (e.g. /dev/sdd)
@@ -26,9 +26,10 @@ Usage: ./install.sh [option] ...
 ```
 
 ## Example
+`installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory:
 
 ```
-# ./install.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
+# ./installer.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
 
 * WARNING: This will format /dev/sdd:
 
@@ -57,7 +58,7 @@ Do you wish to continue formatting this device? [yes|no] yes
 Installation succeeded. Try booting your Raspberry Pi , login as root, and run "/root/config.sh" to finish the installation.
 ```
 
-Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and the SSH key you specified when running "install.sh" from your host.
+Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and the SSH key you specified when running "installer.sh" from your host.
 
 ## Dependencies
 1. curl (net-misc/curl)
