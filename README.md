@@ -30,7 +30,22 @@ Usage: ./rpi-gentoo-install.sh [option] ...
 ```
 # ./rpi-gentoo-install.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
 
->>> Partitioning /dev/sdd ................................. [OK]
+* WARNING: This will format /dev/sdd:
+
+Model: Generic- USB3.0 CRW -SD (scsi)
+Disk /dev/sdd: 31.3GB
+Sector size (logical/physical): 512B/512B
+Partition Table: msdos
+Disk Flags: 
+
+Number  Start   End     Size    Type     File system     Flags
+ 1      1049kB  67.1MB  66.1MB  primary  fat32           boot, lba
+ 2      67.1MB  8657MB  8590MB  primary  linux-swap(v1)
+ 3      8657MB  29.7GB  21.0GB  primary  ext4
+
+Do you wish to continue formatting this device? [yes|no] yes
+
+>>> Partitioning card ..................................... [OK]
 >>> Downloading stage3 tarball ............................ [OK]
 >>> Verifying stage3 tarball .............................. [OK]
 >>> Installing Gentoo ..................................... [OK]
