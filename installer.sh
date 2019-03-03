@@ -229,7 +229,7 @@ download_stage3() {
   fi
 
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
-    wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}DIGESTS.asc"
+    wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc"
   fi
 
   return 0
@@ -237,18 +237,22 @@ download_stage3() {
 
 verify_stage3() {
   # Validating signatures
-  if [ ! "gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys 0xBB572E0E2D182910 " ]; then
+  if ! gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys 0xBB572E0E2D182910 >/dev/null 2>&1; then
     echo -e "[${LRED}FAILED${NC}]: could not retrieve Gentoo PGP key. Do we have Interwebz?"
     exit 1
   fi
-  if [ ! "gpg --verify ${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
+  if ! gpg --verify ${WORKDIR}/${TARBALL##*/}.DIGESTS.asc >/dev/null 2>&1; then
     echo -e "[${LRED}FAILED${NC}]: tarball PGP signature mismatch - you sure you download an official stage3 tarball?"
     exit 1
   fi
-  if [ ! "sha512sum -c ${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
+
+  grep SHA512 -A 1 --no-group-separator ${WORKDIR}/${TARBALL##*/}.DIGESTS > ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512
+  cd "${WORKDIR}"
+  if ! sha512sum -c ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512 >/dev/null 2>&1; then
     echo -e "[${LRED}FAILED${NC}]: tarball hash mismatch - did Gentoo mess up their hashes?"
     exit 1
   fi
+  cd - >/dev/null 2>&1
 
   return 0
 }
