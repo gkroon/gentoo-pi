@@ -7,7 +7,7 @@ get_vars() {
 
 passwd_root() {
   if ! passwd root; then
-  	echo -e "[${LRED}FAILED${NC}]: could not change root's passwd"
+  	echo -e "${LRED}* FAILED${NC}: could not change root's passwd"
     exit 1
   fi
 }
@@ -31,40 +31,40 @@ setting_hostname() {
 
 setting_date() {
   # Disabling hwclock (RPi doesn't have one) and enabling swclock
-  if ! rc-update add swclock boot; then
+  if ! rc-update add swclock boot >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service swclock to runlevel boot"
     exit 1
   fi
 
-  if ! rc-update del hwclock boot; then
+  if ! rc-update del hwclock boot >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not remove service hwclock from runlevel boot"
     exit 1
   fi
 
   # Settings date to current date of host
-  if ! date +%Y-%m-%d -s "${DATE}"; then
+  if ! date +%Y-%m-%d -s "${DATE}" >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not set date"
     exit 1
   fi
 }
 
 enable_eth0() {
-  if ! ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0; then
+  if ! ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0 >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not symlink /etc/init.d/net.lo to /etc/init.d/net.eth0"
     exit 1
   fi
 
-  if ! rc-service net.eth0 start; then
+  if ! rc-service net.eth0 start >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not start service net.eth0"
     exit 1
   fi
 
-  if ! rc-update add net.eth0 boot; then
+  if ! rc-update add net.eth0 boot >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service net.eth0 to runlevel boot"
     exit 1
   fi
 
-  if ! rc-update --update; then
+  if ! rc-update --update >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not update dependency tree cache"
     exit 1
   fi
@@ -76,9 +76,8 @@ new_user() {
     exit 1
   fi
 
-  if ! mkdir /home/${NEW_USER}/.ssh; then
-  	echo -e "[${LRED}FAILED${NC}]: could not create /home/${NEW_USER}/.ssh"
-    exit 1
+  if [ ! -d "/home/${NEW_USER}/.ssh" ]; then
+  	mkdir /home/${NEW_USER}/.ssh
   fi
 
   if ! cp "/root/.ssh/authorized_keys" "/home/${NEW_USER}/.ssh/authorized_keys"; then
@@ -99,7 +98,7 @@ new_user() {
 
 new_user_passwd() {
   if ! passwd ${NEW_USER}; then
-  	echo -e "[${LRED}FAILED${NC}]: could not change new user's passwd"
+  	echo -e "${LRED}* FAILED${NC}: could not change new user's passwd"
     exit 1
   fi
 }
@@ -152,12 +151,13 @@ install_packages() {
   fi
 }
 
-configure_packages() {}
+configure_packages() {
   # Setting favourite editor. Change this to your own favourite.
   if ! eselect editor set /usr/bin/nvim; then
   	echo -e "[${LRED}FAILED${NC}]: could not change favourite editor"
     exit 1
   fi
+
   if ! source /etc/profile; then
   	echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
     exit 1
@@ -214,44 +214,49 @@ enable_services() {
 
 get_vars
 
+echo -e '--- Changing passwd for root ---'
 echo
-echo -e "--- Changing passwd for root ---"
 passwd_root
+echo
 
-echo -en ">>> Setting hostname .............................................. "
+echo -en '>>> Setting hostname .............................................. '
 if setting_hostname ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Setting date .................................................. "
+echo -en '>>> Setting date .................................................. '
 if setting_date ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Enabling eth0 ................................................ "
+echo -en '>>> Enabling eth0 ................................................. '
 if enable_eth0 ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Creating new user ............................................ "
+echo -en '>>> Creating new user ............................................. '
+echo
 if new_user ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en "--- Changing passwd for new user ---"
+echo -e '--- Changing passwd for new user ---'
+echo
 new_user_passwd
+echo
 
-echo -en ">>> Updating Gentoo .............................................. "
+echo -e '--- Updating Gentoo ---'
+echo
 if update_gentoo ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Installing packages .......................................... "
+echo -en '>>> Installing packages ........................................... '
 if install_packages ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Enabling services .......................................... "
+echo -en '>>> Enabling services ............................................. '
 if enable_services ; then
 	echo -e "[${LGREEN}OK${NC}]"
 fi

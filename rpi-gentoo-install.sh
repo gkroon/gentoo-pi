@@ -28,7 +28,7 @@ print_help() {
   exit 0
 }
 
-get_args_vars() {
+get_args() {
   while [[ "$1" ]]; do
     case "$1" in
       -h|--help) print_help ;;
@@ -42,7 +42,9 @@ get_args_vars() {
     esac
     shift
   done
+}
 
+get_vars() {
   # The following partitions will be created, on "${SDCARD_DEVICE}"
   SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
   SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}2"
@@ -82,44 +84,69 @@ get_args_vars() {
 }
 
 test_args() {
-  # If any argument is not specified, exit the script - we need all arguments
   if [ ! -n "${SDCARD_DEVICE}" ]; then
     echo "-d|--device no set. Exiting..."
     exit 1
+  elif [ ! -b "${SDCARD_DEVICE}" ]; then
+    echo "${SDCARD_DEVICE} not found."
+    exit 1
+  else
+    # Last warning before formatting ${SDCARD_DEVICE}
+    echo
+    echo -e "${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}"
+    echo
+    parted ${SDCARD_DEVICE} print
+    while true; do
+      read -p "Do you wish to continue formatting this device? [yes|no] " yn
+      case $yn in
+        [Yy]* ) break ;;
+        [Nn]* ) exit 0 ;;
+        * ) echo "Please answer yes or no." ;;
+      esac
+    done
   fi
+
   if [ ! -n "${TARBALL}" ]; then
     echo "-t|--tarball no set. Exiting..."
     exit 1
+  elif [ ! "curl -Is ${TARBALL}" ]; then
+    echo -e "${TARBALL} not found. Exiting..."
+    exit 1
   fi
+
   if [ ! -n "${HOSTNAME}" ]; then
     echo "-H|--hostname no set. Exiting..".
     exit 1
   fi
+
   if [ ! -n "${TIMEZONE}" ]; then
     echo "-T|--timezone no set. Exiting..."
     exit 1
+  elif [ ! -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+    echo "Invalid timezone. Exiting..."
+    exit 1
   fi
+
   if [ ! -n "${NEW_USER}" ]; then
     echo "-u|--username no set. Exiting..."
     exit 1
   fi
+
   if [ ! -n "${NEW_USER_FULL_NAME}" ]; then
     echo "-f|--fullname no set. Exiting..."
     exit 1
   fi
+
   if [ ! -n "${SSH_PUBKEY}" ]; then
     echo "-s|--ssh-pubkey no set. Exiting..."
+    exit 1
+  elif [[ $(file "${SSH_PUBKEY}") != *OpenSSH*public\ key ]]; then
+    echo "Invalid SSH public key. Exiting..."
     exit 1
   fi
 }
 
 prepare_card() {
-  # Test if "${SDCARD_DEVICE}" really exists
-  if [ ! -b "${SDCARD_DEVICE}" ]; then
-    echo "${SDCARD_DEVICE} not found."
-    exit 1
-  fi
-
   # Unmount if mounted
   if [ "mount | grep ${SDCARD_DEVICE}1" ]; then
     umount "${SDCARD_DEVICE}1" > /dev/null 2>&1
@@ -180,37 +207,21 @@ download_stage3() {
 
   # Downloading stage3 tarball and signatures
   if [ ! -f "${WORKDIR}/${TARBALL##*/}" ]; then
-    if [ "curl -Is ${TARBALL}" ]; then
       wget -q "${TARBALL}" -O ${WORKDIR}/${TARBALL##*/}
-    else
-      echo -e "[${LRED}FAILED${NC}]: ${TARBALL} not found"
-      exit 1
-    fi
   fi
+
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.CONTENTS" ]; then
-    if [ "curl -Is ${TARBALL}.CONTENTS" ]; then
-      wget -q "${TARBALL}.CONTENTS" -O "${WORKDIR}/${TARBALL##*/}.CONTENTS"
-    else
-      echo -e "[${LRED}FAILED${NC}]: ${TARBALL}.CONTENTS not found"
-      exit 1
-    fi
+    wget -q "${TARBALL}.CONTENTS" -O "${WORKDIR}/${TARBALL##*/}.CONTENTS"
   fi
+
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.DIGESTS" ]; then
-    if [ "curl -Is ${TARBALL}.DIGESTS" ]; then
-      wget -q "${TARBALL}.DIGESTS" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS"
-    else
-      echo -e "[${LRED}FAILED${NC}]: ${TARBALL}.DIGESTS not found"
-      exit 1
-    fi
+    wget -q "${TARBALL}.DIGESTS" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS"
   fi
+
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
-    if [ "curl -Is ${TARBALL}.DIGESTS.asc" ]; then
-      wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}DIGESTS.asc"
-    else
-      echo -e "[${LRED}FAILED${NC}]: {TARBALL}.DIGESTS.asc not found"
-      exit 1
-    fi
+    wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}DIGESTS.asc"
   fi
+
   return 0
 }
 
@@ -228,6 +239,7 @@ verify_stage3() {
     echo -e "[${LRED}FAILED${NC}]: tarball hash mismatch - did Gentoo mess up their hashes?"
     exit 1
   fi
+
   return 0
 }
 
@@ -236,6 +248,7 @@ install_gentoo() {
     echo -e "[${LRED}FAILED${NC}]: could not untar ${WORKDIR}/${TARBALL##*/} to ${MOUNTED_ROOT}/usr/"
     exit 1
   fi
+
   return 0
 }
 
@@ -244,10 +257,12 @@ install_portage() {
   if [ ! -f "${WORKDIR}/portage-latest.tar.bz2" ]; then
     wget -q "http://distfiles.gentoo.org/snapshots/portage-latest.tar.bz2" -O "${WORKDIR}/portage-latest.tar.bz2"
   fi
+
   if ! tar xfpj ${WORKDIR}/portage-latest.tar.bz2 -C "${MOUNTED_ROOT}/usr/"; then
     echo -e "[${LRED}FAILED${NC}]: could not untar ${WORKDIR}/portage-latest.tar.bz2 to ${MOUNTED_ROOT}/usr/"
     exit 1
   fi
+
   return 0
 }
 
@@ -349,46 +364,47 @@ eject_card() {
   eject "${SDCARD_DEVICE}"
 }
 
-get_args_vars "$@"
+get_args "$@"
+get_vars
 test_args
 
 echo
-echo -en ">>> Partitioning card ..................................... "
+echo -en '>>> Partitioning card ..................................... '
 if prepare_card ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Downloading stage3 tarball ............................ "
+echo -en '>>> Downloading stage3 tarball ............................ '
 if download_stage3 ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Verifying stage3 tarball .............................. "
+echo -en '>>> Verifying stage3 tarball .............................. '
 if verify_stage3 ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Installing Gentoo ..................................... "
+echo -en '>>> Installing Gentoo ..................................... '
 if install_gentoo ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Installing Portage .................................... "
+echo -en '>>> Installing Portage .................................... '
 if install_portage ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Configuring Gentoo .................................... "
+echo -en '>>> Configuring Gentoo .................................... '
 if configure_gentoo ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Installing the latest binary Raspberry Pi kernel ...... "
+echo -en '>>> Installing the latest binary Raspberry Pi kernel ...... '
 if install_rpi_kernel ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en ">>> Synchronising cached writes to card and eject card .... "
+echo -en '>>> Synchronising cached writes to card and eject card .... '
 if eject_card ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
