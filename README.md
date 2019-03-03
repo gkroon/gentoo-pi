@@ -1,5 +1,5 @@
 # Script to install Gentoo on a Raspberry Pi 2/3
-This script fetches an armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once succefully booted and logged into root to finish the installation.
+This script fetches an armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once successfully booted and logged into root to finish the installation.
 
 ## Full disclosure
 I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
@@ -15,10 +15,10 @@ Usage: ./installer.sh [option] ...
 
   -h, --help         display this help and exit
   -d, --device       raw device to write to (e.g. /dev/sdd)
-  -t, --tarball-url  specify the stage3 tarball url (e.g. 
+  -T, --tarball-url  override the latest stage3 tarball url (e.g. 
                      http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)
   -H, --hostname     set hostname (e.g. gentoo)
-  -T, --timezone     set timezone (e.g. Europe/Amsterdam)
+  -t, --timezone     set timezone (e.g. Europe/Amsterdam)
   -u, --username     specify your preferred username (e.g. larry)
   -f, --fullname     specify your full name (e.g. "Larry the Cow")
   -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
@@ -29,7 +29,7 @@ Usage: ./installer.sh [option] ...
 `installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory:
 
 ```
-# ./installer.sh -d /dev/sdd -t http://distfiles.gentoo.org/releases/arm/autobuilds/current-stage3-armv7a_hardfp/stage3-armv7a_hardfp-20180831.tar.bz2 -H auriga -T Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
+# ./installer.sh -d /dev/sdd -H auriga -t Europe/Amsterdam -u larry -f "Larry the Cow" -s ~/.ssh/id_ed25519.pub
 
 * WARNING: This will format /dev/sdd:
 
@@ -55,7 +55,7 @@ Do you wish to continue formatting this device? [yes|no] yes
 >>> Installing the latest binary Raspberry Pi kernel ...... [OK]
 >>> Synchronising cached writes to card and eject card .... [OK]
 
-Installation succeeded. Try booting your Raspberry Pi , login as root, and run "/root/config.sh" to finish the installation.
+Installation succeeded. Try booting your Raspberry Pi, login as root, and run "/root/config.sh" to finish the installation.
 ```
 
 Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and the SSH key you specified when running "installer.sh" from your host.
@@ -69,11 +69,10 @@ Then, after running "/root/config.sh" once the Raspberry Pi is successfully boot
 If you wish to contribute (you are encouraged!), feel free to create issues, or fork and create pull requests.
 
 ## To do
-1. Pull latest armv7a hardfp stage3 tarball automatically
-2. Compiling kernel from source
-3. Update files/update.sh to automatically remove old kernel modules upon kernel upgrade
-4. Add argument for encrypted swap with random IV at boot
-5. Add argument for encrypted root (LUKS w/ GPG key)
+1. Compiling kernel from source
+2. Update files/update.sh to automatically remove old kernel modules upon kernel upgrade
+3. Add argument for encrypted swap with random IV at boot
+4. Add argument for encrypted root (LUKS w/ GPG key)
 
 ## Ideas
 1. Ask again for missing arguments if not provided?

@@ -17,10 +17,10 @@ print_help() {
   echo
   echo "  -h, --help         display this help and exit"
   echo "  -d, --device       raw device to write to (e.g. /dev/sde)"
-  echo "  -t, --tarball-url  specify the stage3 tarball url (e.g. "
+  echo "  -T, --tarball-url  override the latest stage3 tarball url (e.g. "
   echo "                     http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
   echo "  -H, --hostname     set hostname (e.g. gentoo)"
-  echo "  -T, --timezone     set timezone (e.g. Europe/Amsterdam)"
+  echo "  -t, --timezone     set timezone (e.g. Europe/Amsterdam)"
   echo "  -u, --username     specify your preferred username (e.g. larry)"
   echo "  -f, --fullname     specify your full name (e.g. \"Larry the Cow\")"
   echo "  -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
@@ -33,9 +33,9 @@ get_args() {
     case "$1" in
       -h|--help) print_help ;;
       -d|--device) SDCARD_DEVICE="${2}" ;;
-      -t|--tarball-url) TARBALL="${2}" ;;
+      -T|--tarball-url) TARBALL="${2}" ;;
       -H|--hostname) HOSTNAME="${2}" ;;
-      -T|--timezone) TIMEZONE="${2}" ;;
+      -t|--timezone) TIMEZONE="${2}" ;;
       -u|--username) NEW_USER="${2}" ;;
       -f|--fullname) NEW_USER_FULL_NAME="${2}" ;;
       -s|--ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
@@ -92,14 +92,6 @@ test_args() {
     exit 1
   fi
 
-  if [ ! -n "${TARBALL}" ]; then
-    echo "-t|--tarball no set. Exiting..."
-    exit 1
-  elif [[ $(curl -Is ${TARBALL}) != *200\ OK* ]]; then
-    echo -e "Tarball not found. Exiting..."
-    exit 1
-  fi
-
   if [ ! -n "${HOSTNAME}" ]; then
     echo "-H|--hostname no set. Exiting..".
     exit 1
@@ -129,6 +121,23 @@ test_args() {
   elif [[ $(file "${SSH_PUBKEY}") != *OpenSSH*public\ key ]]; then
     echo "Invalid SSH public key. Exiting..."
     exit 1
+  fi
+}
+
+offer_tarball() {
+  # Offer to download latest armv7a hardfp stage3 tarball from gentoo.org if no tarball specified
+  if [ ! -n "${TARBALL}" ]; then
+    if [[ $(curl -Is http://distfiles.gentoo.org/releases/arm/autobuilds/latest-stage3-armv7a_hardfp.txt) != *200\ OK ]]; then
+      LATEST_TARBALL="$(curl -s http://distfiles.gentoo.org/releases/arm/autobuilds/latest-stage3-armv7a_hardfp.txt | tail -n 1 | awk '{print $1}')"
+      TARBALL="http://distfiles.gentoo.org/releases/arm/autobuilds/${LATEST_TARBALL}"
+      if [[ ! $(curl -Is ${TARBALL}) != *200\ OK ]]; then
+        echo -e "Latest tarball archive not found - please file a bug to my author? Exiting..."
+        exit 1
+      fi
+    else
+      echo -e "Latest tarball location not found - please file a bug to my author? Exiting..."
+      exit 1
+    fi
   fi
 }
 
@@ -209,7 +218,7 @@ download_stage3() {
 
   # Downloading stage3 tarball and signatures
   if [ ! -f "${WORKDIR}/${TARBALL##*/}" ]; then
-      wget -q "${TARBALL}" -O ${WORKDIR}/${TARBALL##*/}
+    wget -q "${TARBALL}" -O ${WORKDIR}/${TARBALL##*/}
   fi
 
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.CONTENTS" ]; then
@@ -375,6 +384,7 @@ eject_card() {
 get_args "$@"
 get_vars
 test_args
+offer_tarball
 last_warning
 
 echo
