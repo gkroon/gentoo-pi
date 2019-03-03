@@ -90,27 +90,13 @@ test_args() {
   elif [ ! -b "${SDCARD_DEVICE}" ]; then
     echo "${SDCARD_DEVICE} not found."
     exit 1
-  else
-    # Last warning before formatting ${SDCARD_DEVICE}
-    echo
-    echo -e "${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}"
-    echo
-    parted ${SDCARD_DEVICE} print
-    while true; do
-      read -p "Do you wish to continue formatting this device? [yes|no] " yn
-      case $yn in
-        [Yy]* ) break ;;
-        [Nn]* ) exit 0 ;;
-        * ) echo "Please answer yes or no." ;;
-      esac
-    done
   fi
 
   if [ ! -n "${TARBALL}" ]; then
     echo "-t|--tarball no set. Exiting..."
     exit 1
-  elif [ ! "curl -Is ${TARBALL}" ]; then
-    echo -e "${TARBALL} not found. Exiting..."
+  elif [[ $(curl -Is ${TARBALL}) != *200\ OK* ]]; then
+    echo -e "Tarball not found. Exiting..."
     exit 1
   fi
 
@@ -144,6 +130,22 @@ test_args() {
     echo "Invalid SSH public key. Exiting..."
     exit 1
   fi
+}
+
+last_warning() {
+  # Last warning before formatting ${SDCARD_DEVICE}
+    echo
+    echo -e "${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}"
+    echo
+    parted ${SDCARD_DEVICE} print
+    while true; do
+      read -p "Do you wish to continue formatting this device? [yes|no] " yn
+      case $yn in
+        [Yy]* ) break ;;
+        [Nn]* ) exit 0 ;;
+        * ) echo "Please answer yes or no." ;;
+      esac
+    done
 }
 
 prepare_card() {
@@ -367,6 +369,7 @@ eject_card() {
 get_args "$@"
 get_vars
 test_args
+last_warning
 
 echo
 echo -en '>>> Partitioning card ..................................... '
