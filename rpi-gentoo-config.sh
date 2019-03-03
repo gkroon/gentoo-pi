@@ -5,58 +5,129 @@ get_vars() {
   LANIP="$(ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2}')"
 }
 
-configure_gentoo() {
-  # Change password of root
-  passwd root
+passwd_root() {
+  if ! passwd root; then
+  	echo -e "[${LRED}FAILED${NC}]: could not change root's passwd"
+    exit 1
+  fi
+}
 
-  # Configuring new hostname
-  echo "hostname=\"${HOSTNAME}\"" > /etc/conf.d/hostname
-  echo "127.0.1.1 localhost ${HOSTNAME}" >> /etc/hosts
-  echo "::1 localhost ${HOSTNAME}" >> /etc/hosts
+setting_hostname() {
+  if ! echo "hostname=\"${HOSTNAME}\"" > /etc/conf.d/hostname; then
+  	echo -e "[${LRED}FAILED${NC}]: could not set hostname"
+    exit 1
+  fi
 
+  if ! echo "127.0.1.1 localhost ${HOSTNAME}" >> /etc/hosts; then
+  	echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
+    exit 1
+  fi
+
+  if ! echo "::1 localhost ${HOSTNAME}" >> /etc/hosts; then
+  	echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
+    exit 1
+  fi
+}
+
+setting_date() {
   # Disabling hwclock (RPi doesn't have one) and enabling swclock
-  rc-update add swclock boot
-  rc-update del hwclock boot
+  if ! rc-update add swclock boot; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service swclock to runlevel boot"
+    exit 1
+  fi
+
+  if ! rc-update del hwclock boot; then
+  	echo -e "[${LRED}FAILED${NC}]: could not remove service hwclock from runlevel boot"
+    exit 1
+  fi
 
   # Settings date to current date of host
-  date +%Y-%m-%d -s "${DATE}"
+  if ! date +%Y-%m-%d -s "${DATE}"; then
+  	echo -e "[${LRED}FAILED${NC}]: could not set date"
+    exit 1
+  fi
+}
 
-  # Enabling networking on boot
-  cd /etc/init.d/
-  ln -sv net.lo net.eth0
-  rc-service net.eth0 start
-  rc-update add net.eth0 boot
-  rc-update --update
+enable_eth0() {
+  if ! ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0; then
+  	echo -e "[${LRED}FAILED${NC}]: could not symlink /etc/init.d/net.lo to /etc/init.d/net.eth0"
+    exit 1
+  fi
 
-  # Editing sudoers file to grant users in 'wheel' sudo privs
-  echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
+  if ! rc-service net.eth0 start; then
+  	echo -e "[${LRED}FAILED${NC}]: could not start service net.eth0"
+    exit 1
+  fi
 
-  # Add new user
-  useradd -m -G adm,audio,cdrom,input,users,video,wheel -s /bin/bash -c "${NEW_USER_FULL_NAME}" ${NEW_USER}
-  passwd ${NEW_USER}
+  if ! rc-update add net.eth0 boot; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service net.eth0 to runlevel boot"
+    exit 1
+  fi
 
-  # Copy authorized_keys to new user
-  mkdir /home/${NEW_USER}/.ssh
-  cp "/root/.ssh/authorized_keys" "/home/${NEW_USER}/.ssh/authorized_keys"
-  chown ${NEW_USER}:${NEW_USER} "/home/${NEW_USER}/.ssh/authorized_keys"
-  chmod 0600 "/home/${NEW_USER}/.ssh/authorized_keys"
+  if ! rc-update --update; then
+  	echo -e "[${LRED}FAILED${NC}]: could not update dependency tree cache"
+    exit 1
+  fi
+}
+
+new_user() {
+  if ! useradd -m -G adm,audio,cdrom,input,users,video,wheel -s /bin/bash -c "${NEW_USER_FULL_NAME}" ${NEW_USER}; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add new user"
+    exit 1
+  fi
+
+  if ! mkdir /home/${NEW_USER}/.ssh; then
+  	echo -e "[${LRED}FAILED${NC}]: could not create /home/${NEW_USER}/.ssh"
+    exit 1
+  fi
+
+  if ! cp "/root/.ssh/authorized_keys" "/home/${NEW_USER}/.ssh/authorized_keys"; then
+  	echo -e "[${LRED}FAILED${NC}]: could not copy /root/.ssh/authorized_keys to /home/${NEW_USER}/.ssh/authorized_keys"
+    exit 1
+  fi
+
+  if ! chown ${NEW_USER}:${NEW_USER} "/home/${NEW_USER}/.ssh/authorized_keys"; then
+  	echo -e "[${LRED}FAILED${NC}]: could not chown /home/${NEW_USER}/.ssh/authorized_keys"
+    exit 1
+  fi
+
+  if ! chmod 0600 "/home/${NEW_USER}/.ssh/authorized_keys"; then
+  	echo -e "[${LRED}FAILED${NC}]: could not chmod 0600 /home/${NEW_USER}/.ssh/authorized_keys"
+    exit 1
+  fi
+}
+
+new_user_passwd() {
+  if ! passwd ${NEW_USER}; then
+  	echo -e "[${LRED}FAILED${NC}]: could not change new user's passwd"
+    exit 1
+  fi
 }
 
 update_gentoo() {
-  /root/rpi-gentoo-updater.sh
+  if ! /root/rpi-gentoo-updater.sh; then
+  	echo -e "[${LRED}FAILED${NC}]: could not update Gentoo"
+    exit 1
+  fi
 }
 
 install_packages() {
   # Emerge portage tools
-  emerge --ask --verbose \
+  if ! emerge --ask --verbose \
     app-portage/genlop \
-    app-portage/gentoolkit
+    app-portage/gentoolkit; then
+    	echo -e "[${LRED}FAILED${NC}]: could not install Portage tools"
+    	exit 1
+  fi
 
   # Add global USE flags. Change these to your own desire.
-  euse -E zsh-completion
+  if ! euse -E zsh-completion; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add global USE flags"
+    exit 1
+  fi
 
   # Emerging misc packages. Change these to your own desire.
-  emerge --ask --verbose \
+  if ! emerge --ask --verbose \
     app-admin/eclean-kernel \
     app-admin/pass \
     app-admin/sudo \
@@ -75,27 +146,115 @@ install_packages() {
     net-misc/ntp \
     sys-apps/mlocate \
     sys-process/htop \
-    sys-process/lsof
-
-  # Setting favourite editor. Change this to your own favourite.
-  eselect editor set /usr/bin/nvim
-  source /etc/profile
+    sys-process/lsof; then
+    	echo -e "[${LRED}FAILED${NC}]: could not install packages"
+    	exit 1
+  fi
 }
 
-enabling_services() {
-  rc-update add dhcpcd default
-  rc-update add ntp-client default
-  rc-update add sshd default
-  rc-update add unbound default
-  rc-service dhcpcd start
-  rc-service ntp-client start
-  rc-service sshd restart 
-  rc-service unbound start
+configure_packages() {}
+  # Setting favourite editor. Change this to your own favourite.
+  if ! eselect editor set /usr/bin/nvim; then
+  	echo -e "[${LRED}FAILED${NC}]: could not change favourite editor"
+    exit 1
+  fi
+  if ! source /etc/profile; then
+  	echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
+    exit 1
+  fi
+
+  # Editing sudoers file to grant users in 'wheel' sudo privileges
+  if ! echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers; then
+  	echo -e "[${LRED}FAILED${NC}]: could not grant group wheel sudo privileges"
+    exit 1
+  fi
+}
+
+enable_services() {
+  if ! rc-update add dhcpcd default; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service dhcpcd to runlevel default"
+    exit 1
+  fi
+
+  if ! rc-update add ntp-client default; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service ntp-client to runlevel default"
+    exit 1
+  fi
+
+  if ! rc-update add sshd default; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
+    exit 1
+  fi
+
+  if ! rc-update add unbound default; then
+  	echo -e "[${LRED}FAILED${NC}]: could not add service unbound to runlevel default"
+    exit 1
+  fi
+
+  if ! rc-service dhcpcd start; then
+  	echo -e "[${LRED}FAILED${NC}]: could not start service dhcpcd"
+    exit 1
+  fi
+
+  if ! rc-service ntp-client start; then
+  	echo -e "[${LRED}FAILED${NC}]: could not start service ntp-client"
+    exit 1
+  fi
+
+  if ! rc-service sshd start; then
+  	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
+    exit 1
+  fi
+
+  if ! rc-service unbound start; then
+  	echo -e "[${LRED}FAILED${NC}]: could not start service unbound"
+    exit 1
+  fi
 }
 
 get_vars
-configure_gentoo
-update_gentoo
-install_packages
-enabling_services
+
+echo
+echo -e "--- Changing passwd for root ---"
+passwd_root
+
+echo -en ">>> Setting hostname .............................................. "
+if setting_hostname ; then
+  echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en ">>> Setting date .................................................. "
+if setting_date ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en ">>> Enabling eth0 ................................................ "
+if enable_eth0 ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en ">>> Creating new user ............................................ "
+if new_user ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en "--- Changing passwd for new user ---"
+new_user_passwd
+
+echo -en ">>> Updating Gentoo .............................................. "
+if update_gentoo ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en ">>> Installing packages .......................................... "
+if install_packages ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en ">>> Enabling services .......................................... "
+if enable_services ; then
+	echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo
 echo "Post deployment finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\"."

@@ -353,7 +353,7 @@ get_args_vars "$@"
 test_args
 
 echo
-echo -en ">>> Partitioning ${SDCARD_DEVICE} ................................. "
+echo -en ">>> Partitioning card ..................................... "
 if prepare_card ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
@@ -381,22 +381,16 @@ fi
 echo -en ">>> Configuring Gentoo .................................... "
 if configure_gentoo ; then
   echo -e "[${LGREEN}OK${NC}]"
-else
-  echo -e "[${LRED}FAILED${NC}]"
 fi
 
 echo -en ">>> Installing the latest binary Raspberry Pi kernel ...... "
 if install_rpi_kernel ; then
   echo -e "[${LGREEN}OK${NC}]"
-else
-  echo -e "[${LRED}FAILED${NC}]"
 fi
 
 echo -en ">>> Synchronising cached writes to card and eject card .... "
 if eject_card ; then
   echo -e "[${LGREEN}OK${NC}]"
-else
-  echo -e "[${LRED}FAILED${NC}]"
 fi
 
 echo
