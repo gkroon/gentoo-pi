@@ -207,9 +207,9 @@ fi
 
 echo
 if [ -f "/home/${NEW_USER}/.ssh/authorized_keys" ]; then
-  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\". You can maintain your system up-to-date by executing \"/root/update.sh\" as root."
+  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP} -i ${SSH_PUBKEY}\". Please update your system by executing \"/root/update.sh\" as root at your earliest convenience."
 else
-  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP}. You can maintain your system up-to-date by executing \"/root/update.sh\" as root."
+  echo "Configuration finished. You can now SSH from your host using \"${NEW_USER}@${LANIP}. Please update your system by executing \"/root/update.sh\" as root at your earliest convenience."
 fi
 rm -- "$0"
 exit 0
