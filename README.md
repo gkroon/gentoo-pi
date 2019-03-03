@@ -68,10 +68,12 @@ Then, after running "/root/config.sh" once the Raspberry Pi is successfully boot
 If you wish to contribute (you are encouraged!), feel free to create issues, or fork and create pull requests.
 
 ## To do
-
 1. Pull latest armv7a hardfp stage3 tarball automatically
+2. Add argument for encrypted swap with random IV at boot
+3. Add argument for encrypted root (LUKS w/ GPG key)
 
 ## Ideas
 1. Ask again for missing arguments if not provided?
 2. Or maybe write ncurses install wizard instead of arguments?
-3. Python refactor?
+3. Add argument for hardenend toolchain, if possible on ARM?
+4. Python refactor?
