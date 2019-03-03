@@ -57,16 +57,20 @@ Do you wish to continue formatting this device? [yes|no] yes
 Installation succeeded. Try booting your Raspberry Pi and login as root. Then proceed with the final configuration by launching "/root/rpi-gentoo-config.sh".
 ```
 
+## Dependencies
+1. curl (net-misc/curl)
+2. parted (sys-block/parted)
+3. wget (net-misc/wget)
+
 ## How to contribute
 If you wish to contribute (you are encouraged!), feel free to create issues, or fork and create pull requests.
 
 ## To do
 
-1. Pull latest armv7a hardfp stage3 tarball
-2. Check if arguments are valid
-3. More UX and feedback on progress of rpi-gentoo-config.sh
-4. Remove rpi-gentoo-config.sh after it has succesfully run
+1. Pull latest armv7a hardfp stage3 tarball automatically
+2. Remove rpi-gentoo-config.sh after it has succesfully run
 
 ## Ideas
-1. ncurses install wizard instead of arguments?
-2. Python refactor?
+1. Ask again for missing arguments if not provided?
+2. Or maybe write ncurses install wizard instead of arguments?
+3. Python refactor?
