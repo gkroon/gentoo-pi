@@ -119,7 +119,7 @@ sync_portage() {
 
 install_packages() {
   # Emerging a select few packages everybody can benefit from
-  if ! emerge --ask --verbose \
+  if ! emerge --quiet \
     app-admin/sudo \
     net-misc/ntp; then
     	echo -e "[${LRED}FAILED${NC}]: could not install packages"
