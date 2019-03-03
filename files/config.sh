@@ -111,7 +111,7 @@ enable_eth0() {
 }
 
 sync_portage() {
-  if ! emerge-webrsync; then
+  if ! emerge-webrsync --quiet; then
   	echo -e "[${LRED}FAILED${NC}]: emerge-webrsync failed, aborting update for safety"
     exit 1
   fi
