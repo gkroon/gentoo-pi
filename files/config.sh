@@ -111,7 +111,7 @@ enable_eth0() {
 }
 
 sync_portage() {
-  if ! emerge-webrsync --quiet; then
+  if ! emerge-webrsync >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: emerge-webrsync failed, aborting update for safety"
     exit 1
   fi
@@ -119,7 +119,7 @@ sync_portage() {
 
 install_packages() {
   # Emerging a select few packages everybody can benefit from
-  if ! emerge --quiet \
+  if ! emerge >/dev/null 2>&1 \
     app-admin/sudo \
     net-misc/ntp; then
     	echo -e "[${LRED}FAILED${NC}]: could not install packages"
