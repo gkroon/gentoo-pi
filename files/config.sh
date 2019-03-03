@@ -136,22 +136,22 @@ configure_packages() {
 }
 
 enable_services() {
-  if ! rc-update add ntp-client default; then
+  if ! rc-update add ntp-client default >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service ntp-client to runlevel default"
     exit 1
   fi
 
-  if ! rc-update add sshd default; then
+  if ! rc-update add sshd default >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
     exit 1
   fi
 
-  if ! rc-service ntp-client start; then
+  if ! rc-service ntp-client start >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not start service ntp-client"
     exit 1
   fi
 
-  if ! rc-service sshd start; then
+  if ! rc-service sshd start >/dev/null 2>&1; then
   	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
     exit 1
   fi
