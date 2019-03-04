@@ -128,9 +128,9 @@ install_packages() {
 }
 
 configure_packages() {
-  # Editing sudoers file to grant users in group wheel sudo privileges
-  if ! echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers; then
-  	echo -e "[${LRED}FAILED${NC}]: could not grant group wheel sudo privileges"
+  # Editing sudoers file to grant users in group wheel passwordless sudo privileges
+  if ! echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers; then
+  	echo -e "[${LRED}FAILED${NC}]: could not grant group wheel passwordless sudo privileges"
     exit 1
   fi
 }
