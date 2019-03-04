@@ -22,7 +22,7 @@ get_vars() {
 passwd_root() {
   # Changiung root passwd
   if ! passwd root; then
-  	echo -e "${LRED}* FAILED${NC}: could not change root's passwd"
+    echo -e "${LRED}* FAILED${NC}: could not change root's passwd"
     exit 1
   fi
 }
@@ -68,17 +68,17 @@ new_user_passwd() {
 setting_hostname() {
   # Setting hostname
   if ! echo "hostname=\"${HOSTNAME}\"" > /etc/conf.d/hostname; then
-  	echo -e "[${LRED}FAILED${NC}]: could not set hostname"
+    echo -e "[${LRED}FAILED${NC}]: could not set hostname"
     exit 1
   fi
 
   if ! echo "127.0.1.1 localhost ${HOSTNAME}" >> /etc/hosts; then
-  	echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
+    echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
     exit 1
   fi
 
   if ! echo "::1 localhost ${HOSTNAME}" >> /etc/hosts; then
-  	echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
+    echo -e "[${LRED}FAILED${NC}]: could not update /etc/hosts"
     exit 1
   fi
 }
@@ -86,47 +86,47 @@ setting_hostname() {
 setting_date() {
   # Disabling hwclock (RPi doesn't have one) and enabling swclock
   if ! rc-update add swclock boot >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service swclock to runlevel boot"
+    echo -e "[${LRED}FAILED${NC}]: could not add service swclock to runlevel boot"
     exit 1
   fi
 
   if ! rc-update del hwclock boot >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not remove service hwclock from runlevel boot"
+    echo -e "[${LRED}FAILED${NC}]: could not remove service hwclock from runlevel boot"
     exit 1
   fi
 
   # Settings date to current date of host
   if ! date +%Y-%m-%d -s "${DATE}" >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not set date"
+    echo -e "[${LRED}FAILED${NC}]: could not set date"
     exit 1
   fi
 }
 
 enable_eth0() {
   if ! ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0 >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not symlink /etc/init.d/net.lo to /etc/init.d/net.eth0"
+    echo -e "[${LRED}FAILED${NC}]: could not symlink /etc/init.d/net.lo to /etc/init.d/net.eth0"
     exit 1
   fi
 
   if ! rc-service net.eth0 start >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not start service net.eth0"
+    echo -e "[${LRED}FAILED${NC}]: could not start service net.eth0"
     exit 1
   fi
 
   if ! rc-update add net.eth0 boot >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service net.eth0 to runlevel boot"
+    echo -e "[${LRED}FAILED${NC}]: could not add service net.eth0 to runlevel boot"
     exit 1
   fi
 
   if ! rc-update --update >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not update dependency tree cache"
+    echo -e "[${LRED}FAILED${NC}]: could not update dependency tree cache"
     exit 1
   fi
 }
 
 sync_portage() {
   if ! emerge-webrsync >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: emerge-webrsync failed, aborting update for safety"
+    echo -e "[${LRED}FAILED${NC}]: emerge-webrsync failed, aborting update for safety"
     exit 1
   fi
 }
@@ -176,22 +176,22 @@ install_packages() {
   if ! emerge >/dev/null 2>&1 \
     app-admin/sudo \
     net-misc/ntp; then
-    	echo -e "[${LRED}FAILED${NC}]: could not install packages"
-    	exit 1
+      echo -e "[${LRED}FAILED${NC}]: could not install packages"
+      exit 1
   fi
 }
 
 configure_packages() {
   # Editing sudoers file to grant users in group wheel passwordless sudo privileges
   if ! echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers; then
-  	echo -e "[${LRED}FAILED${NC}]: could not grant group wheel passwordless sudo privileges"
+    echo -e "[${LRED}FAILED${NC}]: could not grant group wheel passwordless sudo privileges"
     exit 1
   fi
 }
 
 enable_services() {
   if ! rc-update add ntp-client default >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service ntp-client to runlevel default"
+    echo -e "[${LRED}FAILED${NC}]: could not add service ntp-client to runlevel default"
     exit 1
   fi
 
@@ -202,12 +202,12 @@ enable_services() {
 
   if [[ "${SSH}" -eq "1" ]]; then
     if ! rc-update add sshd default >/dev/null 2>&1; then
-    	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
+      echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
       exit 1
     fi
 
     if ! rc-service sshd start >/dev/null 2>&1; then
-    	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
+      echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
       exit 1
     fi
   fi
@@ -238,12 +238,12 @@ fi
 
 echo -en '>>> Setting date .................................................. '
 if setting_date ; then
-	echo -e "[${LGREEN}OK${NC}]"
+  echo -e "[${LGREEN}OK${NC}]"
 fi
 
 echo -en '>>> Enabling eth0 and getting a DHCP lease ........................ '
 if enable_eth0 ; then
-	echo -e "[${LGREEN}OK${NC}]"
+  echo -e "[${LGREEN}OK${NC}]"
 fi
 
 echo -en '>>> Synchronising Portage ......................................... '
@@ -260,12 +260,12 @@ fi
 
 echo -en '>>> Installing packages ........................................... '
 if install_packages ; then
-	echo -e "[${LGREEN}OK${NC}]"
+  echo -e "[${LGREEN}OK${NC}]"
 fi
 
 echo -en '>>> Enabling services ............................................. '
 if enable_services ; then
-	echo -e "[${LGREEN}OK${NC}]"
+  echo -e "[${LGREEN}OK${NC}]"
 fi
 
 echo
