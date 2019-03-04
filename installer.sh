@@ -16,14 +16,17 @@ print_help() {
   echo "Usage: $0 [option] ..." >&2
   echo
   echo "  -h, --help         display this help and exit"
-  echo "  -d, --device       raw device to write to (e.g. /dev/sde)"
-  echo "  -T, --tarball-url  optionally set a different stage3 tarball url (e.g. "
+  echo "  -d, --device       card to write to (e.g. /dev/sde)"
+  echo "      --tarball-url  optionally set a different stage3 tarball url (e.g. "
   echo "                     http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
   echo "  -H, --hostname     set hostname (e.g. gentoo)"
   echo "  -t, --timezone     set timezone (e.g. Europe/Amsterdam)"
   echo "  -u, --username     specify your preferred username (e.g. larry)"
   echo "  -f, --fullname     specify your full name (e.g. \"Larry the Cow\")"
-  echo "  -s, --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
+  echo "  -s, --ssh          optionally enable SSH"
+  echo "      --ssh-port     optionally set a different SSH port (e.g. 2222)"
+  echo "      --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
+  echo "      --hardened     optionally switch to a hardened profile (experimental)"
   echo
   exit 0
 }
@@ -33,54 +36,18 @@ get_args() {
     case "$1" in
       -h|--help) print_help ;;
       -d|--device) SDCARD_DEVICE="${2}" ;;
-      -T|--tarball-url) TARBALL="${2}" ;;
+         --tarball-url) TARBALL="${2}" ;;
       -H|--hostname) HOSTNAME="${2}" ;;
       -t|--timezone) TIMEZONE="${2}" ;;
       -u|--username) NEW_USER="${2}" ;;
       -f|--fullname) NEW_USER_FULL_NAME="${2}" ;;
-      -s|--ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
+      -s|--ssh) SSH="1" ;;
+         --ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
+         --ssh-port) SSH_PORT="{2}" ;;
+         --hardened) HARDENED="1" ;;
     esac
     shift
   done
-}
-
-get_vars() {
-  # The following partitions will be created, on "${SDCARD_DEVICE}"
-  SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
-  SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}2"
-  SDCARD_DEVICE_ROOT="${SDCARD_DEVICE}3"
-
-  # Work directory to download archives to and to unpack from
-  WORKDIR="/tmp/stage3"
-
-  # The following path will be used on your workstation to mount the newly
-  # formatted "${SDCARD_DEVICE_ROOT}". Then, "${SDCARD_DEVICE_BOOT}" is mounted
-  # on its /boot directory.
-  MOUNTED_ROOT="/mnt/gentoo"
-  MOUNTED_BOOT="${MOUNTED_ROOT}/boot"
-
-  # The official Raspberry Pi firmware will be git pulled to "${FIRMWARE_DIR}",
-  # and will then be installed on the system. You can also compile your own
-  # kernel, but I have not yet found/written a solid Raspberry Pi kernel config.
-  FIRMWARE_DIR="${MOUNTED_ROOT}/opt/firmware"
-
-  # The following entries will be inserted in fstab on the SD card
-  RPI_DEVICE="/dev/mmcblk0"
-  RPI_DEVICE_BOOT="${RPI_DEVICE}p1"
-  RPI_DEVICE_SWAP="${RPI_DEVICE}p2"
-  RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
-
-  # Get current date from host. We will use NTP later on
-  DATE=$(date --rfc-3339=date)
-
-  # Terminal colours
-  GREEN='\033[0;32m'
-  BLUE='\033[0;34m'
-  PURPLE='\033[0;35m'
-  LGREEN='\033[1;32m'
-  LRED='\033[1;31m'
-  YELLOW='\033[1;33m'
-  NC='\033[0m'
 }
 
 test_args() {
@@ -121,6 +88,45 @@ test_args() {
       exit 1
     fi
   fi
+}
+
+get_vars() {
+  # The following partitions will be created, on "${SDCARD_DEVICE}"
+  SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
+  SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}2"
+  SDCARD_DEVICE_ROOT="${SDCARD_DEVICE}3"
+
+  # Work directory to download archives to and to unpack from
+  WORKDIR="/tmp/stage3"
+
+  # The following path will be used on your workstation to mount the newly
+  # formatted "${SDCARD_DEVICE_ROOT}". Then, "${SDCARD_DEVICE_BOOT}" is mounted
+  # on its /boot directory.
+  MOUNTED_ROOT="/mnt/gentoo"
+  MOUNTED_BOOT="${MOUNTED_ROOT}/boot"
+
+  # The official Raspberry Pi firmware will be git pulled to "${FIRMWARE_DIR}",
+  # and will then be installed on the system. You can also compile your own
+  # kernel, but I have not yet found/written a solid Raspberry Pi kernel config.
+  FIRMWARE_DIR="${MOUNTED_ROOT}/opt/firmware"
+
+  # The following entries will be inserted in fstab on the SD card
+  RPI_DEVICE="/dev/mmcblk0"
+  RPI_DEVICE_BOOT="${RPI_DEVICE}p1"
+  RPI_DEVICE_SWAP="${RPI_DEVICE}p2"
+  RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
+
+  # Get current date from host. We will use NTP later on
+  DATE=$(date --rfc-3339=date)
+
+  # Terminal colours
+  GREEN='\033[0;32m'
+  BLUE='\033[0;34m'
+  PURPLE='\033[0;35m'
+  LGREEN='\033[1;32m'
+  LRED='\033[1;31m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
 }
 
 offer_tarball() {
@@ -319,14 +325,27 @@ configure_gentoo() {
     exit 1
   fi
 
-  # Adding your SSH pubkey to authorized_keys:
-  if [ ! -d "${MOUNTED_ROOT}/root/.ssh" ]; then
-    mkdir "${MOUNTED_ROOT}/root/.ssh"
-  fi
-
+  # Adding your SSH pubkey to authorized_keys, if specified
   if [ -n "${SSH_PUBKEY}" ]; then
+    if [ ! -d "${MOUNTED_ROOT}/root/.ssh" ]; then
+      mkdir "${MOUNTED_ROOT}/root/.ssh"
+    fi
     cat "${SSH_PUBKEY}" > "${MOUNTED_ROOT}/root/.ssh/authorized_keys"
     chmod 0600 "${MOUNTED_ROOT}/root/.ssh/authorized_keys"
+  # Or, permit password authentication when SSH is wanted
+  elif [ -n "${SSH}" ]; then
+    if ! sed "s/^PasswordAuthentication no$/^PasswordAuthentication yes$/g" -i "${MOUNTED_ROOT}/etc/ssh/sshd_config"; then
+      echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config"
+      exit 1
+    fi
+  fi
+
+  # Setting a different SSH port, if specified
+  if [ -n "${SSH_PORT}" ]; then
+    if ! sed "s/^#Port 22$/Port ${SSH_PORT}/g" -i "${MOUNTED_ROOT}/etc/ssh/sshd_config"; then
+      echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config"
+      exit 1
+    fi
   fi
 
   # Copying updater.sh and writing config.sh
@@ -345,7 +364,9 @@ configure_gentoo() {
       print "\tHOSTNAME=\"'"${HOSTNAME}"'\""
       print "\tNEW_USER=\"'"${NEW_USER}"'\""
       print "\tNEW_USER_FULL_NAME=\"'"${NEW_USER_FULL_NAME}"'\""
+      print "\tSSH=\"'"${SSH}"'\""
       print "\tSSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
+      print "\tHARDENED=\"'"${HARDENED}"'\""
       }' files/config.sh > "${MOUNTED_ROOT}/root/config.out"
     mv "${MOUNTED_ROOT}/root/config.out" "${MOUNTED_ROOT}/root/config.sh"
     chmod 0700 "${MOUNTED_ROOT}/root/config.sh"
@@ -382,8 +403,8 @@ eject_card() {
 }
 
 get_args "$@"
-get_vars
 test_args
+get_vars
 offer_tarball
 last_warning
 

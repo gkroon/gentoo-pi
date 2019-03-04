@@ -1,4 +1,4 @@
-# Script to install Gentoo on a Raspberry Pi 2/3
+# A script to install Gentoo on a Raspberry Pi 2/3
 This script automatically fetches the latest armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once successfully booted and logged into root to finish the installation.
 
 ## Full disclosure
@@ -14,14 +14,17 @@ Gentoo Raspberry Pi installer, version 0.1
 Usage: ./installer.sh [option] ...
 
   -h, --help         display this help and exit
-  -d, --device       raw device to write to (e.g. /dev/sdd)
-  -T, --tarball-url  optionally set a different stage3 tarball url (e.g. 
+  -d, --device       card to write to (e.g. /dev/sdd)
+      --tarball-url  optionally set a different stage3 tarball url (e.g. 
                      http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)
   -H, --hostname     set hostname (e.g. gentoo)
   -t, --timezone     set timezone (e.g. Europe/Amsterdam)
   -u, --username     specify your preferred username (e.g. larry)
   -f, --fullname     specify your full name (e.g. "Larry the Cow")
-  -s, --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
+  -s, --ssh          optionally enable SSH
+      --ssh-port     optionally set a different SSH port (e.g. 2222)
+      --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
+      --hardened     optionally switch to a hardened profile (experimental)
 
 ```
 
@@ -77,5 +80,5 @@ If you wish to contribute (you are encouraged!), feel free to create issues, or 
 ## Ideas
 1. Ask again for missing arguments if not provided?
 2. Or maybe write ncurses install wizard instead of arguments?
-3. Add argument for hardenend toolchain, if possible on ARM?
+3. Add argument for hardened toolchain, if possible on Raspberry Pi?
 4. Python refactor?

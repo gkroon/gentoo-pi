@@ -1,8 +1,22 @@
 #!/bin/sh
 
+# This script will be edited and copied to /root of the card by installer.sh.
+# Once installer.sh is done, boot the Raspberry Pi with the new card, en then
+# launch /root/config.sh, which is this script, to finish the installation.
+# After the script is finished it will remove itself.
+
 get_vars() {
   # Collected vars from running the installation script will be hardcoded after this line
   LANIP="$(ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2}')"
+
+  # Terminal colours
+  GREEN='\033[0;32m'
+  BLUE='\033[0;34m'
+  PURPLE='\033[0;35m'
+  LGREEN='\033[1;32m'
+  LRED='\033[1;31m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
 }
 
 passwd_root() {
@@ -117,6 +131,46 @@ sync_portage() {
   fi
 }
 
+hardened_profile() {
+  if [[ "${HARDENED}" -eq "1" ]]; then
+    if ! eselect profile set hardened/linux/arm/armv7a; then
+      echo -e "[${LRED}FAILED${NC}]: could not switch to hardened profile"
+      exit 1
+    fi
+
+    if ! source /etc/profile; then
+      echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
+      exit 1
+    fi
+
+    if ! emerge --oneshot sys-devel/gcc; then
+      echo -e "[${LRED}FAILED${NC}]: could not oneshot sys-devel/gcc"
+      exit 1
+    fi
+
+    if ! emerge --oneshot binutils virtual/libc; then
+      echo -e "[${LRED}FAILED${NC}]: could not oneshot virtual/libc"
+      exit 1
+    fi
+
+    if ! source /etc/profile; then
+      echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
+      exit 1
+    fi
+
+    if ! emerge --depclean prelink; then
+      echo -e "[${LRED}FAILED${NC}]: could not depclean prelink"
+      exit 1
+    fi
+    if ! emerge --emptytree --verbose @world; then
+      echo -e "[${LRED}FAILED${NC}]: could not rebuild world"
+      exit 1
+    fi
+  else
+    return 1
+  fi
+}
+
 install_packages() {
   # Emerging a select few packages everybody can benefit from
   if ! emerge >/dev/null 2>&1 \
@@ -141,19 +195,21 @@ enable_services() {
     exit 1
   fi
 
-  if ! rc-update add sshd default >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
-    exit 1
-  fi
-
   if ! rc-service ntp-client start >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not start service ntp-client"
+    echo -e "[${LRED}FAILED${NC}]: could not start service ntp-client"
     exit 1
   fi
 
-  if ! rc-service sshd start >/dev/null 2>&1; then
-  	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
-    exit 1
+  if [[ "${SSH}" -eq "1" ]]; then
+    if ! rc-update add sshd default >/dev/null 2>&1; then
+    	echo -e "[${LRED}FAILED${NC}]: could not add service sshd to runlevel default"
+      exit 1
+    fi
+
+    if ! rc-service sshd start >/dev/null 2>&1; then
+    	echo -e "[${LRED}FAILED${NC}]: could not start service sshd"
+      exit 1
+    fi
   fi
 }
 
@@ -193,6 +249,13 @@ fi
 echo -en '>>> Synchronising Portage ......................................... '
 if sync_portage ; then
   echo -e "[${LGREEN}OK${NC}]"
+fi
+
+echo -en '>>> Hardened toolchain ............................................ '
+if hardened_profile; then
+  echo -e "[${LGREEN}OK${NC}]"
+else
+  echo -e "[${BLUE}SKIPPING${NC}]"
 fi
 
 echo -en '>>> Installing packages ........................................... '
