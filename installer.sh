@@ -252,6 +252,7 @@ verify_stage3() {
     exit 1
   fi
 
+  # We have to omit non-H hashes first to verify integrity using H, where H is the chosen hash function for verification.
   grep SHA512 -A 1 --no-group-separator ${WORKDIR}/${TARBALL##*/}.DIGESTS > ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512
   cd "${WORKDIR}"
   if ! sha512sum -c ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512 >/dev/null 2>&1; then
@@ -382,8 +383,8 @@ configure_gentoo() {
   fi
 }
 
-install_rpi_kernel() {
-  # Pulling and installing Raspberry Pi kernel and modules.
+install_rpi_firmware() {
+  # Pulling and installing Raspberry Pi firmware.
   if ! git clone --depth 1 git://github.com/raspberrypi/firmware/ "${FIRMWARE_DIR}" >/dev/null 2>&1; then
     echo -e "[${LRED}FAILED${NC}]: could not git clone Raspberry Pi firmware to ${FIRMWARE_DIR}"
     exit 1
@@ -439,8 +440,8 @@ if configure_gentoo ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en '>>> Installing the latest binary Raspberry Pi kernel ...... '
-if install_rpi_kernel ; then
+echo -en '>>> Installing the latest binary Raspberry Pi firmware .... '
+if install_rpi_firmware ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
@@ -450,4 +451,5 @@ if eject_card ; then
 fi
 
 echo
-echo "Installation succeeded. Try booting your Raspberry Pi, login as root, and run \"/root/config.sh\" to finish the installation."
+echo "Installation succeeded. Try booting your Raspberry Pi, login as root, and "
+echo "run \"/root/config.sh\" to finish the installation."

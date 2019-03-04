@@ -133,36 +133,36 @@ sync_portage() {
 
 hardened_profile() {
   if [[ "${HARDENED}" -eq "1" ]]; then
-    if ! eselect profile set hardened/linux/arm/armv7a; then
+    if ! eselect profile set hardened/linux/arm/armv7a >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not switch to hardened profile"
       exit 1
     fi
 
-    if ! source /etc/profile; then
+    if ! source /etc/profile >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
       exit 1
     fi
 
-    if ! emerge --oneshot sys-devel/gcc; then
+    if ! emerge --oneshot sys-devel/gcc >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not oneshot sys-devel/gcc"
       exit 1
     fi
 
-    if ! emerge --oneshot binutils virtual/libc; then
+    if ! emerge --oneshot binutils virtual/libc >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not oneshot virtual/libc"
       exit 1
     fi
 
-    if ! source /etc/profile; then
+    if ! source /etc/profile >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
       exit 1
     fi
 
-    if ! emerge --depclean prelink; then
+    if ! emerge --depclean prelink >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not depclean prelink"
       exit 1
     fi
-    if ! emerge --emptytree --verbose @world; then
+    if ! emerge --emptytree --verbose @world >/dev/null 2>&1; then
       echo -e "[${LRED}FAILED${NC}]: could not rebuild world"
       exit 1
     fi
@@ -251,7 +251,7 @@ if sync_portage ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en '>>> Hardened toolchain ............................................ '
+echo -en '>>> Setting hardened profile, then rebuilding gcc and world ....... '
 if hardened_profile; then
   echo -e "[${LGREEN}OK${NC}]"
 else
