@@ -1,5 +1,5 @@
 # Script to install Gentoo on a Raspberry Pi 2/3
-This script fetches an armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once successfully booted and logged into root to finish the installation.
+This script automatically fetches the latest armv7a hardfp stage3 tarball, verifies its authenticity (GPG and hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and copies your SSH key. It then copies two extra scripts for you to run manually once successfully booted and logged into root to finish the installation.
 
 ## Full disclosure
 I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
@@ -15,13 +15,13 @@ Usage: ./installer.sh [option] ...
 
   -h, --help         display this help and exit
   -d, --device       raw device to write to (e.g. /dev/sdd)
-  -T, --tarball-url  override the latest stage3 tarball url (e.g. 
+  -T, --tarball-url  optionally set a different stage3 tarball url (e.g. 
                      http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)
   -H, --hostname     set hostname (e.g. gentoo)
   -t, --timezone     set timezone (e.g. Europe/Amsterdam)
   -u, --username     specify your preferred username (e.g. larry)
   -f, --fullname     specify your full name (e.g. "Larry the Cow")
-  -s, --ssh-pubkey   set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
+  -s, --ssh-pubkey   optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
 
 ```
 
@@ -58,7 +58,7 @@ Do you wish to continue formatting this device? [yes|no] yes
 Installation succeeded. Try booting your Raspberry Pi, login as root, and run "/root/config.sh" to finish the installation.
 ```
 
-Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and the SSH key you specified when running "installer.sh" from your host.
+Then, after running "/root/config.sh" once the Raspberry Pi is successfully booted, you should be able to SSH into your Raspberry Pi using the IP address the script returns, and optionally with the SSH key you specified when running "installer.sh" from your host.
 
 ## Dependencies
 1. curl (net-misc/curl)

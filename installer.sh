@@ -17,7 +17,7 @@ print_help() {
   echo
   echo "  -h, --help         display this help and exit"
   echo "  -d, --device       raw device to write to (e.g. /dev/sde)"
-  echo "  -T, --tarball-url  override the latest stage3 tarball url (e.g. "
+  echo "  -T, --tarball-url  optionally set a different stage3 tarball url (e.g. "
   echo "                     http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
   echo "  -H, --hostname     set hostname (e.g. gentoo)"
   echo "  -t, --timezone     set timezone (e.g. Europe/Amsterdam)"
