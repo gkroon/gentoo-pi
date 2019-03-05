@@ -131,43 +131,51 @@ sync_portage() {
   fi
 }
 
+# As there is no hardened armv7a hardfp stage3 tarball, we have to switch
+# profile, rebuild gcc and then world
 hardened_profile() {
-  if [[ "${HARDENED}" -eq "1" ]]; then
-    if ! eselect profile set hardened/linux/arm/armv7a >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not switch to hardened profile"
-      exit 1
-    fi
+  if ! eselect profile set hardened/linux/arm/armv7a >/dev/null 2>&1; then
+    echo
+    echo -e "${LRED}* FAILED${NC}: could not switch to hardened profile"
+    exit 1
+  fi
 
-    if ! source /etc/profile >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
-      exit 1
-    fi
+  if ! source /etc/profile >/dev/null 2>&1; then
+    echo
+    echo -e "${LRED}* FAILED${NC}: could not source /etc/profile"
+    exit 1
+  fi
+}
 
-    if ! emerge --oneshot sys-devel/gcc >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not oneshot sys-devel/gcc"
-      exit 1
-    fi
+oneshot_depclean() {
+  if ! emerge --oneshot sys-devel/gcc >/dev/null 2>&1; then
+    echo
+    echo -e "${LRED}* FAILED${NC}: could not oneshot sys-devel/gcc"
+    exit 1
+  fi
 
-    if ! emerge --oneshot binutils virtual/libc >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not oneshot virtual/libc"
-      exit 1
-    fi
+  if ! emerge --oneshot binutils virtual/libc >/dev/null 2>&1; then
+    echo
+    echo -e "[${LRED}* FAILED${NC}]: could not oneshot virtual/libc"
+    exit 1
+  fi
 
-    if ! source /etc/profile >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not source /etc/profile"
-      exit 1
-    fi
+  if ! source /etc/profile >/dev/null 2>&1; then
+    echo
+    echo -e "${LRED}* FAILED${NC}: could not source /etc/profile"
+    exit 1
+  fi
 
-    if ! emerge --depclean prelink >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not depclean prelink"
-      exit 1
-    fi
-    if ! emerge --emptytree --verbose @world >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not rebuild world"
-      exit 1
-    fi
-  else
-    return 1
+  if ! emerge --depclean prelink >/dev/null 2>&1; then
+    echo
+    echo -e "${LRED}* FAILED${NC}: could not depclean prelink"
+    exit 1
+  fi
+}
+rebuild_world() {
+  if ! emerge --emptytree --verbose @world; then
+    echo -e "${LRED}prelinkFAILED${NC}: could not rebuild world"
+    exit 1
   fi
 }
 
@@ -251,11 +259,26 @@ if sync_portage ; then
   echo -e "[${LGREEN}OK${NC}]"
 fi
 
-echo -en '>>> Setting hardened profile, then rebuilding gcc and world ....... '
-if hardened_profile; then
-  echo -e "[${LGREEN}OK${NC}]"
-else
-  echo -e "[${BLUE}SKIPPING${NC}]"
+if [[ "${HARDENED}" -eq "1" ]]; then
+  echo -en '>>> Setting hardened profile .................................... '
+  if hardened_profile ; then
+    echo -e "[${LGREEN}OK${NC}]"
+  fi
+fi
+
+if [[ "${HARDENED}" -eq "1" ]]; then
+  echo -en '>>> Rebuilding GCC (could take a few hours) ..................... '
+  if oneshot_depclean ; then
+    echo -e "[${LGREEN}OK${NC}]"
+  fi
+fi
+
+if [[ "${HARDENED}" -eq "1" ]]; then
+  echo
+  echo -e '--- Rebuilding world (could take a day or two) ---'
+  echo
+  hardened_profile
+  echo
 fi
 
 echo -en '>>> Installing packages ........................................... '
