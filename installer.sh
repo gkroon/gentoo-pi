@@ -515,12 +515,12 @@ prep_chroot() {
 }
 
 eject_card() {
+  sync
   for ((i=${#CHROOT_BIND_MOUNTS[@]}; i>=0; i--)); do
     umount "${MOUNTED_ROOT}/${CHROOT_BIND_MOUNTS[$i]}"
   done
   umount "${MOUNTED_BOOT}"
   umount "${MOUNTED_ROOT}"
-  sync
   eject "${SDCARD_DEVICE}"
 }
 
