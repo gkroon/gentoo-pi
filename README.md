@@ -1,5 +1,5 @@
 # A script to install Gentoo on a Raspberry Pi 2/3
-This script automatically fetches the latest armv7a hardfp stage3 tarball, verifies its authenticity (GPG signature and SHA-512 hashes) and installs it on your card. It then configures the new installation to properly boot, set the correct timezone, and optionally copies your SSH key. Then it uses qemu-binfmt to chroot into the card to finish the installation, such as enabling eth0 at boot, adding your user, changing passwords, optionally switching to a hardened profile and rebuilding world, installing packages, and so on. It also copies an extra update script in /root for you to periodically run in order to update and maintain your Gentoo Pi.
+The aim of this project is to create a minimal, vanilla Gentoo installation for the Raspberry Pi 2/3, plus necessary configurations to properly boot. It achieves this by fetching the latest official armv7a hardfp stage3 tarball from Gentoo, and installs it on your card. It then proceeds with some necessary configurations of your own choosing, partly by chrooting using qemu-binfmt.
 
 ## Full disclosure
 I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
@@ -28,12 +28,10 @@ Usage: ./installer.sh [option] ...
       --ssh-pubkey     optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
       --hardened       optionally switch to a hardened profile (experimental)
 
-
 ```
 
 ## Example
-`installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory:
-
+`installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory. The following output shows a successful installation using my own Gentoo desktop:
 ```
 # ./installer.sh -d /dev/sdd -H gentoo -t Europe/Amsterdam -u larry \
 -p 'correcthorsebatterystaple' -f "Larry the Cow" \
@@ -86,7 +84,7 @@ Installation succeeded. Try booting your Gentoo Pi.
 Then, after the Gentoo Pi is successfully booted, you should be able to login as your new user.
 
 ## Dependencies
-This script assumes an amd64 Linux host, using either OpenRC or systemd, with the following packages:
+This script assumes any amd64 Linux host, using either OpenRC or systemd (to start the qemu-binfmt service), with the following packages:
 
 1. alien (app-arch/alien);
 2. awk (virtual/awk);
@@ -112,12 +110,12 @@ If you wish to contribute (you are encouraged!), feel free to create issues, or 
 
 ## To do
 1. Compiling kernel from source, instead of using the (very convenient) Raspberry Pi binary firmware;
-2. Update files/update.sh to automatically remove old kernel modules upon firmware upgrade;
+2. Update "files/update.sh" to automatically remove old kernel modules upon firmware upgrade;
 3. Add argument for encrypted swap with random IV at boot;
-4. Add argument for encrypted root (LUKS w/ GPG key).
+4. Add argument for encrypted root (LUKS w/ GPG key);
+5. Add argument to create a stage4 image instead.
 
 ## Ideas
 1. Ask again for missing arguments if not provided?
 2. Or maybe write ncurses install wizard instead of arguments?
-3. Add argument to create a stage4 image, instead of writing to card
-4. Python refactor?
+3. Python refactor?

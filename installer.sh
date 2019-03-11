@@ -359,7 +359,7 @@ configure_gentoo() {
     exit 1
   fi
 
-  # Setting date and time zone
+  # Setting time zone
   if [ -f "${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}" ]; then
     cp "${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${MOUNTED_ROOT}/etc/localtime"
     echo "${TIMEZONE}" > "${MOUNTED_ROOT}/etc/timezone"
