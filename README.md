@@ -11,22 +11,32 @@ I'm not a developer by any means, and you may find this repository a comical att
 ```
 $ ./installer.sh -h
 Gentoo Pi installer, version 0.1
-Usage: ./installer.sh [option] ...
+Usage: ./installer.sh -d DEVICE -H HOSTNAME -t TIMEZONE -u USERNAME -p PASSWORD 
+       -f FULLNAME -r ROOT_PASSWD [option] ...
 
   -h, --help           display this help and exit
   -d, --device         card to write to (e.g. /dev/sde)
-      --tarball-url    optionally set a different stage3 tarball url (e.g. 
-                       http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)
   -H, --hostname       set hostname (e.g. gentoo)
   -t, --timezone       set timezone (e.g. Europe/Amsterdam)
   -u, --username       specify your preferred username (e.g. larry)
-  -p, --password       specify your preferred password (e.g. correcthorsebatterystaple)
+  -p, --password       specify your preferred password (e.g. 
+                       correcthorsebatterystaple)
   -f, --fullname       specify your full name (e.g. "Larry the Cow")
-  -r, --root-password  specify your preferred password for root (e.g. correcthorsebatterystaple)
+  -r, --root-password  specify your preferred password for root (e.g. 
+                       correcthorsebatterystaple)
+
+Options:
+      --tarball-url    optionally set a different stage3 tarball URL 
+                       (e.g. http://distfiles.gentoo.org/releases/\
+                             arm/autobuilds/20180831/\
+                             stage3-armv7a_hardfp-20180831.tar.bz2)
   -s, --ssh            optionally enable SSH
       --ssh-port       optionally set a different SSH port (e.g. 2222)
-      --ssh-pubkey     optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)
-      --hardened       optionally switch to a hardened profile (experimental)
+      --ssh-pubkey     optionally set your ssh pubkey (e.g. 
+                       ~/.ssh/id_ed25519.pub)
+      --hardened       optionally switch to a hardened profile 
+                       (experimental)
+
 
 ```
 
