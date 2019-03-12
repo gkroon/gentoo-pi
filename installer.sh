@@ -13,43 +13,33 @@
 # Help function
 print_help() {
   echo "Gentoo Pi installer, version 0.1"
-  echo "Usage: $0 [option] ..." >&2
+  echo "Usage: $0 -d DEVICE -H HOSTNAME -t TIMEZONE -u USERNAME -p PASSWORD "
+  echo "       -f FULLNAME -r ROOT_PASSWD [option] ..." >&2
   echo
   echo "  -h, --help           display this help and exit"
-  echo "  -d, --device         card to write to (e.g. /dev/sde)"
-  echo "      --tarball-url    optionally set a different stage3 tarball url (e.g. "
-  echo "                       http://distfiles.gentoo.org/releases/arm/autobuilds/20180831/stage3-armv7a_hardfp-20180831.tar.bz2)"
+  echo "  -d, --device         card to write to (e.g. /dev/sde)"  
   echo "  -H, --hostname       set hostname (e.g. gentoo)"
   echo "  -t, --timezone       set timezone (e.g. Europe/Amsterdam)"
   echo "  -u, --username       specify your preferred username (e.g. larry)"
-  echo "  -p, --password       specify your preferred password (e.g. correcthorsebatterystaple)"
+  echo "  -p, --password       specify your preferred password (e.g. "
+  echo "                       correcthorsebatterystaple)"
   echo "  -f, --fullname       specify your full name (e.g. \"Larry the Cow\")"
-  echo "  -r, --root-password  specify your preferred password for root (e.g. correcthorsebatterystaple)"
+  echo "  -r, --root-password  specify your preferred password for root (e.g. "
+  echo "                       correcthorsebatterystaple)"
+  echo
+  echo "Options:"
+  echo "      --tarball-url    optionally set a different stage3 tarball URL "
+  echo "                       (e.g. http://distfiles.gentoo.org/releases/\\"
+  echo "                             arm/autobuilds/20180831/\\"
+  echo "                             stage3-armv7a_hardfp-20180831.tar.bz2)"
   echo "  -s, --ssh            optionally enable SSH"
   echo "      --ssh-port       optionally set a different SSH port (e.g. 2222)"
-  echo "      --ssh-pubkey     optionally set your ssh pubkey (e.g. ~/.ssh/id_ed25519.pub)"
-  echo "      --hardened       optionally switch to a hardened profile (experimental)"
+  echo "      --ssh-pubkey     optionally set your ssh pubkey (e.g. "
+  echo "                       ~/.ssh/id_ed25519.pub)"
+  echo "      --hardened       optionally switch to a hardened profile "
+  echo "                       (experimental)"
   echo
   exit 0
-}
-
-test_deps() {
-  for i in ${DEPS[@]}; do
-    if ! which ${i} >/dev/null 2>&1; then
-      echo "Did not find \"${i}\". Exiting..."
-      exit 1
-    fi
-  done
-
-  if [ ! -f "files/config.sh" ]; then
-    echo "Did not find \"files/config.sh\". Exiting..."
-    exit 1
-  fi
-
-  if [ ! -f "files/updater.sh" ]; then
-    echo "Did not find \"files/updater.sh\". Exiting..."
-    exit 1
-  fi
 }
 
 get_args() {
@@ -191,6 +181,25 @@ test_args() {
       echo "Invalid SSH public key. Exiting..."
       exit 1
     fi
+  fi
+}
+
+test_deps() {
+  for i in ${DEPS[@]}; do
+    if ! which ${i} >/dev/null 2>&1; then
+      echo "Did not find \"${i}\". Exiting..."
+      exit 1
+    fi
+  done
+
+  if [ ! -f "files/config.sh" ]; then
+    echo "Did not find \"files/config.sh\". Exiting..."
+    exit 1
+  fi
+
+  if [ ! -f "files/updater.sh" ]; then
+    echo "Did not find \"files/updater.sh\". Exiting..."
+    exit 1
   fi
 }
 
@@ -524,10 +533,10 @@ eject_card() {
   eject "${SDCARD_DEVICE}"
 }
 
-test_deps
 get_args "$@"
 get_vars
 test_args
+test_deps
 last_warning
 
 echo
