@@ -57,9 +57,7 @@ Note: the `--hardened` argument is not yet stable and has not been extensively t
 ## Example
 `installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory. The following output shows a successful installation using my own Gentoo desktop:
 ```
-# ./installer.sh -d /dev/sdd -H gentoo -t Europe/Amsterdam -u larry \
--p 'correcthorsebatterystaple' -f "Larry the Cow" \
--r 'correcthorsebatterystaple' -s --ssh-pubkey ~/.ssh/id_ed25519.pub
+# ./installer.sh -d /dev/sdd -s --ssh-pubkey ~/.ssh/id_ed25519.pub
 
 * WARNING: This will format /dev/sdd:
 
