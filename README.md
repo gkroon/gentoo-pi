@@ -2,11 +2,11 @@
 The aim of this project is to create a minimal, vanilla Gentoo installation for the Raspberry Pi 2/3, plus necessary configurations to properly boot. It achieves this by fetching the latest official armv7a hardfp stage3 tarball from Gentoo, and installs it on your card. It then proceeds with some necessary configurations of your own choosing, partly by chrooting using qemu-binfmt.
 
 Among those necessary configurations, these are the most important to note:
-1. Compiled Raspberry Pi kernel, using `sys-kernel/raspberrypi-sources`, its default kernel configuration (with added CONFIG_CRYPTO_XTS=y for if you wish to use LUKS);
+1. Compiled Raspberry Pi kernel, using `sys-kernel/raspberrypi-sources`, its default kernel configuration (with added `CONFIG_CRYPTO_XTS=y` for if you wish to use LUKS);
 2. Necessary packages, namely `app-admin/sudo`, `dev-vcs/git`, `net-misc/ntp`, and `sys-kernel/genkernel`.
-3. Some extra necessary packages, which are strictly installed only if required due to your specified arguments. Fr example, this means that when using the `--encrypt-root`, or `--encrypt-swap` arguments, it will install and configure `sys-fs/cryptsetup` as well. At the moment this is the only extra package exception.
+3. Some extra necessary packages, which are strictly installed only if required due to your specified arguments. For example, this means that when using the `--encrypt-root`, or `--encrypt-swap` arguments, it will install and configure `sys-fs/cryptsetup` as well. At the moment this is the only extra package exception.
 
-Note that the total installation time depends on a couple of factors (e.g. download speed, clock speed, write speed, etc.), but as a rough guideline, it takes around 24 hours, where around 18 hours is spent on compiling the kernel, on my Gentoo VM in VirtualBox with 4 VCPUs, on an Intel i5-6300U @ 2.4 GHz. Yes, it takes me that long. I suspect qemu-arm is also emulating the actual clock speed of the Raspberry Pi, for all I know...
+Note that the total installation time depends on a couple of factors (e.g. download speed, clock speed, write speed, etc.), but as a rough guideline, it takes around 24 hours, where around 18 hours is spent on compiling the kernel, on my Gentoo VM in VirtualBox with 4 vCPUs, on my Intel i5-6300U @ 2.4 GHz. Yes, it takes me that long. I suspect qemu-arm is also emulating the actual clock speed of the Raspberry Pi, for all I know...
 
 ## Full disclosure
 I'm not a developer by any means, and you may find this repository a comical attempt to automate installing Gentoo on a Raspberry Pi 2/3. And you're probably right, so feel free to:
