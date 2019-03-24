@@ -1,43 +1,44 @@
 #!/bin/sh
 
-# WARNING: DO NOT BLINDLY RUN. THIS IS A WORK IN PROGRESS SCRIPT FOR MY OWN
-# REFERENCE TO CONFIGURE A WORKING GENTOO INSTALLATION ON A RASPBERRY PI. IT'S
-# NOT READY FOR PRODUCTION YET. HERE BE DRAGONS.
+# WARNING: THIS SCRIPT IS NOT READY FOR PRODUCTION YET. HERE BE DRAGONS.
 
-# Installing Gentoo base system on a Raspberry Pi. This guide assumes a Linux
-# workstation to prepare the SD card. No manual kernel compilation, but instead
-# uses the precompiled firmware of github.com/raspberrypi/firmware/. I would
-# like to automate the kernel compilation from source, but it remains future
-# work for now.
+# Installing Gentoo using stage3 on a Raspberry Pi. This guide assumes a Linux
+# amd64 workstation to prepare the SD card and to finish it using qemu/chroot.
 
 # Help function
 print_help() {
   echo "Gentoo Pi installer, version 0.1"
-  echo "Usage: $0 -d DEVICE -H HOSTNAME -t TIMEZONE -u USERNAME -p PASSWORD "
-  echo "       -f FULLNAME -r ROOT_PASSWD [option] ..." >&2
+  echo "Usage: $0 [-d DEVICE|-i IMAGE] [option] ..." >&2
   echo
   echo "  -h, --help           display this help and exit"
-  echo "  -d, --device         card to write to (e.g. /dev/sde)"  
-  echo "  -H, --hostname       set hostname (e.g. gentoo)"
-  echo "  -t, --timezone       set timezone (e.g. Europe/Amsterdam)"
-  echo "  -u, --username       specify your preferred username (e.g. larry)"
-  echo "  -p, --password       specify your preferred password (e.g. "
-  echo "                       correcthorsebatterystaple)"
-  echo "  -f, --fullname       specify your full name (e.g. \"Larry the Cow\")"
-  echo "  -r, --root-password  specify your preferred password for root (e.g. "
-  echo "                       correcthorsebatterystaple)"
+  echo "  -d, --device         card to write to (e.g. /dev/sde)"
+  echo "  -i, --image-file     specify an image file name to write to, instead "
+  echo "                       of a block device (e.g. ~/image.bin)"
   echo
   echo "Options:"
+  echo "  -p, --password       specify your preferred password (e.g. "
+  echo "                       correcthorsebatterystaple)"
+  echo "  -r, --root-password  specify your preferred password for root (e.g. "
+  echo "                       correcthorsebatterystaple)"
+  echo "  -H, --hostname       specify a different hostname (e.g. gentoo)"
+  echo "  -t, --timezone       Specify a different timezone (e.g. "
+  echo "                       Europe/Amsterdam)"
+  echo "  -u, --username       specify your preferred username (e.g. larry)"
+  echo "  -f, --fullname       specify your full name (e.g. \"Larry the Cow\")"
   echo "      --tarball-url    optionally set a different stage3 tarball URL "
   echo "                       (e.g. http://distfiles.gentoo.org/releases/\\"
-  echo "                             arm/autobuilds/20180831/\\"
-  echo "                             stage3-armv7a_hardfp-20180831.tar.bz2)"
+  echo "                       arm/autobuilds/20180831/\\"
+  echo "                       stage3-armv7a_hardfp-20180831.tar.bz2)"
   echo "  -s, --ssh            optionally enable SSH"
   echo "      --ssh-port       optionally set a different SSH port (e.g. 2222)"
   echo "      --ssh-pubkey     optionally set your ssh pubkey (e.g. "
   echo "                       ~/.ssh/id_ed25519.pub)"
   echo "      --hardened       optionally switch to a hardened profile "
   echo "                       (experimental)"
+  echo "  -R, --encrypt-root   optionally specify your preferred password to "
+  echo "                       encrypt the root partition with"
+  echo "  -S, --encrypt-swap   optionally encrypt the swap partition with a "
+  echo "                       random IV each time the system boots"
   echo
   exit 0
 }
@@ -47,6 +48,7 @@ get_args() {
     case "$1" in
       -h|--help) print_help ;;
       -d|--device) SDCARD_DEVICE="${2}" ;;
+      -i|--image) IMAGE_FILE="$(readlink -m ${2})" ;;
          --tarball-url) TARBALL="${2}" ;;
       -H|--hostname) HOSTNAME="${2}" ;;
       -t|--timezone) TIMEZONE="${2}" ;;
@@ -58,6 +60,8 @@ get_args() {
          --ssh-pubkey) SSH_PUBKEY=$(readlink -m ${2}) ;;
          --ssh-port) SSH_PORT="{2}" ;;
          --hardened) HARDENED="1" ;;
+      -R|--encrypt-root) LUKS_PASSPHRASE="${2}" ;;
+      -S|--encrypt-swap) CRYPT_SWAP="${2}" ;;
     esac
     shift
   done
@@ -73,13 +77,17 @@ get_vars() {
   YELLOW='\033[1;33m'
   NC='\033[0m'
 
+  # Print "failed" or "ok" in colour
+  FAILED="${BLUE}[${NC} ${LRED}failed${NC} ${BLUE}]${NC}"
+  OK="${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+
   # Binaries we expect in PATH to run this script in the first place. However,
   # other commands such as "cd", "echo", and "exit" are assumed to be built-in
   # shell commands. In case of any errors, refer to the README.md to verify the
   # dependencies on your system.
-  DEPS=(alien awk chroot cat chmod cp curl eject file git gpg grep mkdir \
-        mkfs.ext4 mkfs.vfat mkswap modprobe mount parted qemu-arm rm rsync \
-        sed sha512sum sync tar umount useradd wget)
+  DEPS=(alien awk chroot cat chmod cp cryptsetup curl eject file git gpg grep \
+        mkdir mkfs.ext4 mkfs.vfat mkswap modprobe mount parted qemu-arm rm \
+        rsync sed sha512sum sync tar umount useradd wget)
 
   # The following partitions will be created, on "${SDCARD_DEVICE}"
   SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}1"
@@ -95,16 +103,17 @@ get_vars() {
   MOUNTED_ROOT="/mnt/gentoo"
   MOUNTED_BOOT="${MOUNTED_ROOT}/boot"
 
-  # The official Raspberry Pi firmware will be git pulled to "${FIRMWARE_DIR}",
-  # and will then be installed on the system. You can also compile your own
-  # kernel, but I have not yet found/written a solid Raspberry Pi kernel config.
-  FIRMWARE_DIR="${MOUNTED_ROOT}/opt/firmware"
-
   # The following entries will be inserted in fstab on the SD card
   RPI_DEVICE="/dev/mmcblk0"
   RPI_DEVICE_BOOT="${RPI_DEVICE}p1"
   RPI_DEVICE_SWAP="${RPI_DEVICE}p2"
-  RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
+  if [ -n "${LUKS_PASSPHRASE}" ]; then
+    LUKS_ROOT_NAME="gentoopi-root"
+    RPI_DEVICE_ROOT_RAW="${RPI_DEVICE}p3"
+    RPI_DEVICE_ROOT="/dev/mapper/${LUKS_ROOT_NAME}"
+  else
+    RPI_DEVICE_ROOT="${RPI_DEVICE}p3"
+  fi
 
   # We'll need the latest qemu-static-user package from Debian to chroot later
   QEMU_DEB="$(curl -s https://packages.debian.org/sid/amd64/qemu-user-static/download | grep -o http://ftp.nl.debian.org/debian/pool/main/q/qemu/qemu-user-static.\*_amd64.deb)"
@@ -122,63 +131,82 @@ get_vars() {
   CHROOT_BIND_MOUNTS=(proc sys dev dev/pts)
 }
 
+randpw(){
+  < /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-16}
+  echo
+}
+
 test_args() {
-  if [ ! -n "${SDCARD_DEVICE}" ]; then
-    echo "-d|--device no set. Exiting..."
+  if [ ! -n "${SDCARD_DEVICE}" ] && [ ! -n "${IMAGE_FILE}" ]; then
+    printf "-d|--device, xor -i|--image-file not set. Exiting...\n"
     exit 1
-  elif [ ! -b "${SDCARD_DEVICE}" ]; then
-    echo "${SDCARD_DEVICE} not found."
+  elif [ -n "${SDCARD_DEVICE}" ] && [ -n "${IMAGE_FILE}" ]; then
+    printf "-d|--device, and -i|--image-file are both set. Specify only one! Exiting...\n"
     exit 1
+  elif [ -n "${SDCARD_DEVICE}" ]; then
+    if [ ! -b "${SDCARD_DEVICE}" ]; then
+      printf "${SDCARD_DEVICE} not found. Exiting...\n"
+      exit 1
+    fi
+  elif [ -n "${IMAGE_FILE}" ]; then
+    if [ -f "${IMAGE_FILE}" ]; then
+      printf "${IMAGE_FILE} already exists. Exiting...\n"
+      exit 1
+    elif [ ! -f "${IMAGE_FILE}" ]; then
+      if fallocate -l 16G "${IMAGE_FILE}"; then
+        SDCARD_DEVICE=/dev/loop0
+        SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}p1"
+        SDCARD_DEVICE_SWAP="${SDCARD_DEVICE}p2"
+        SDCARD_DEVICE_ROOT="${SDCARD_DEVICE}p3"
+      elif ! fallocate -l 16G "${IMAGE_FILE}"; then
+        printf "Cannot write to ${IMAGE_FILE} - check your permissions / free disk space. Exiting...\n"
+        exit 1
+      fi
+    fi
   fi
 
   if [ ! -n "${TARBALL}" ]; then
     LATEST_TARBALL="$(curl -s http://distfiles.gentoo.org/releases/arm/autobuilds/latest-stage3-armv7a_hardfp.txt | tail -n 1 | awk '{print $1}')"
     TARBALL="http://distfiles.gentoo.org/releases/arm/autobuilds/${LATEST_TARBALL}"
     if [[ ! $(curl -Is ${TARBALL}) != *200\ OK ]]; then
-      echo -e "Latest stage3 tarball not found - please file a bug? Exiting..."
+      printf "Latest stage3 tarball not found - please file a bug? Exiting...\n"
       exit 1
     fi
   elif [[ ! $(curl -Is ${TARBALL}) != *200\ OK ]]; then
-    echo -e "Overridden stage3 tarball not found. Exiting..."
+    printf "Overridden stage3 tarball not found. Exiting...\n"
     exit 1
   fi
 
   if [ ! -n "${HOSTNAME}" ]; then
-    echo "-H|--hostname no set. Exiting..".
-    exit 1
+    HOSTNAME="gentoopi"
   fi
 
   if [ ! -n "${TIMEZONE}" ]; then
-    echo "-T|--timezone no set. Exiting..."
-    exit 1
+    TIMEZONE="Europe/London"
   elif [ ! -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
-    echo "Invalid timezone. Exiting..."
+    printf "Invalid time zone. Exiting...\n"
     exit 1
   fi
 
   if [ ! -n "${NEW_USER}" ]; then
-    echo "-u|--username no set. Exiting..."
-    exit 1
+    NEW_USER="pi"
   fi
 
   if [ ! -n "${NEW_USER_PASSWD}" ]; then
-    echo "-p|--password no set. Exiting..."
-    exit 1
+    NEW_USER_PASSWD=$(randpw)
   fi
 
   if [ ! -n "${NEW_USER_FULL_NAME}" ]; then
-    echo "-f|--fullname no set. Exiting..."
-    exit 1
+    NEW_USER_FULL_NAME="Gentoo Pi user"
   fi
 
   if [ ! -n "${ROOT_PASSWD}" ]; then
-    echo "-r|--root-password no set. Exiting..."
-    exit 1
+    ROOT_PASSWD=$(randpw)
   fi
 
   if [ -n "${SSH_PUBKEY}" ]; then
     if [[ $(file "${SSH_PUBKEY}") != *OpenSSH*public\ key ]]; then
-      echo "Invalid SSH public key. Exiting..."
+      printf "Invalid SSH public key. Exiting...\n"
       exit 1
     fi
   fi
@@ -187,27 +215,25 @@ test_args() {
 test_deps() {
   for i in ${DEPS[@]}; do
     if ! which ${i} >/dev/null 2>&1; then
-      echo "Did not find \"${i}\". Exiting..."
+      printf "Did not find \"${i}\". Exiting...\n"
       exit 1
     fi
   done
 
   if [ ! -f "files/config.sh" ]; then
-    echo "Did not find \"files/config.sh\". Exiting..."
+    printf "Did not find \"files/config.sh\". Exiting...\n"
     exit 1
   fi
 
   if [ ! -f "files/updater.sh" ]; then
-    echo "Did not find \"files/updater.sh\". Exiting..."
+    printf "Did not find \"files/updater.sh\". Exiting...\n"
     exit 1
   fi
 }
 
 last_warning() {
   # Last warning before formatting ${SDCARD_DEVICE}
-    echo
-    echo -e "${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}"
-    echo
+    printf "\n${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}\n\n"
     parted ${SDCARD_DEVICE} print
     while true; do
       read -p "Do you wish to continue formatting this device? [yes|no] " yn
@@ -220,20 +246,49 @@ last_warning() {
 }
 
 prepare_card() {
-  # Unmount if mounted
+  # Creating work dir
+  if [ ! -d "${WORKDIR}" ]; then
+    mkdir "${WORKDIR}"
+  fi
+
+  sync
+  # Unmounting CHROOT_BIND_MOUNTS in reverse order, if needed
   for ((i=${#CHROOT_BIND_MOUNTS[@]}; i>=0; i--)); do
     if [ "mount | grep ${MOUNTED_ROOT}/${CHROOT_BIND_MOUNTS[$i]}" ]; then
       umount "${MOUNTED_ROOT}/${CHROOT_BIND_MOUNTS[$i]}" >/dev/null 2>&1
     fi
   done
 
+  # Unmounting all other card partitions, if needed
+  if [ "mount | grep ${MOUNTED_BOOT}" ]; then
+    umount "${MOUNTED_BOOT}" >/dev/null 2>&1
+  fi
+
+  if [ "mount | grep ${MOUNTED_ROOT}" ]; then
+    umount "${MOUNTED_ROOT}" >/dev/null 2>&1
+  fi
+
+  if [ -b "/dev/mapper/${LUKS_ROOT_NAME}" ]; then
+    cryptsetup luksClose "${LUKS_ROOT_NAME}"
+  fi
+
   for i in {1..10}; do
-    if [ "mount | grep ${SDCARD_DEVICE}${i}" ]; then
-      umount "${SDCARD_DEVICE}${i}" >/dev/null 2>&1
+    if mount | grep ${SDCARD_DEVICE}${i}; then
+      umount "${SDCARD_DEVICE}${i}"
     fi
   done
 
+  if [ -n "${IMAGE_FILE}" ]; then
+    losetup -D
+  fi
+
   # Partition card (tweak sizes if required)
+  # Huge swap of 8 GiB, because some packages require an insane amount of
+  # memory. Chromium, I'm looking at you!
+  if [ -n "${IMAGE_FILE}" ]; then
+    losetup -Pf "${IMAGE_FILE}" 
+  fi
+
   if ! parted --script "${SDCARD_DEVICE}" \
     mklabel msdos \
     mkpart primary fat32 1MiB 64MiB \
@@ -242,44 +297,67 @@ prepare_card() {
     mkpart primary linux-swap 64MiB 8256MiB \
     mkpart primary 8256MiB 95% \
     print >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: partitioning failed"
+      printf "${FAILED}: partitioning failed. Exiting...\n"
       exit 1
+  fi
+
+  if [ -n "${LUKS_PASSPHRASE}" ]; then
+    # WIP: use password-protected GPG key to unlock LUKS
+    # Generate a random secret to encrypt with ${LUKS_PASSPHRASE}
+    # LUKS_SECRET="$(head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n')"
+    # echo "${LUKS_SECRET}" | gpg --batch --passphrase "${LUKS_PASSPHRASE}" --symmetric --cipher-algo aes256 > "${WORKDIR}/root.gpg"
+
+    # Use random secret to encrypt root partition with, and then open it
+    # gpg --quiet --batch --passphrase "${LUKS_PASSPHRASE}" --decrypt "${WORKDIR}/root.gpg" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${SDCARD_DEVICE_ROOT}" || return $?
+    # gpg --quiet --batch --passphrase "${LUKS_PASSPHRASE}" --decrypt "${WORKDIR}/root.gpg" | cryptsetup open --type luks "${SDCARD_DEVICE_ROOT}" "${LUKS_ROOT_NAME}" || return $?
+
+    # USe passphrase to encrypt root partition with, and then open it
+    printf "${LUKS_PASSPHRASE}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${SDCARD_DEVICE_ROOT}" || exit 1
+    printf "${LUKS_PASSPHRASE}" | cryptsetup open --type luks "${SDCARD_DEVICE_ROOT}" "${LUKS_ROOT_NAME}" || exit 1
+
+    # We will no longer use the raw partition, but rather the unlocked, named LUKS partition
+    SDCARD_DEVICE_ROOT_RAW="${SDCARD_DEVICE_ROOT}"
+    SDCARD_DEVICE_ROOT="/dev/mapper/${LUKS_ROOT_NAME}"
   fi
 
   # Formatting new partitions
   if ! yes | mkfs.vfat -F 32 "${SDCARD_DEVICE_BOOT}" >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: formatting ${SDCARD_DEVICE_BOOT} failed"
+    printf "${FAILED}: formatting ${SDCARD_DEVICE_BOOT} failed. Exiting...\n"
     exit 1
   fi
-  if ! yes | mkswap "${SDCARD_DEVICE_SWAP}" >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: formatting ${SDCARD_DEVICE_SWAP} failed"
-    exit 1
+  if [ ! -n "${CRYPT_SWAP}" ]; then
+    if ! yes | mkswap "${SDCARD_DEVICE_SWAP}" >/dev/null 2>&1; then
+      printf "${FAILED}: formatting ${SDCARD_DEVICE_SWAP} failed. Exiting...\n"
+      exit 1
+    fi
   fi
   if ! yes | mkfs.ext4 "${SDCARD_DEVICE_ROOT}" >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: formatting ${SDCARD_DEVICE_ROOT} failed"
+    printf "${FAILED}: formatting ${SDCARD_DEVICE_ROOT} failed. Exiting...\n"
     exit 1
   fi
 
   # Mount root and boot partitions for installation
   rm -rf "${MOUNTED_ROOT}"
   mkdir "${MOUNTED_ROOT}"
+
   if ! mount "${SDCARD_DEVICE_ROOT}" "${MOUNTED_ROOT}"; then
-    echo -e "[${LRED}FAILED${NC}]: mounting ${SDCARD_DEVICE_ROOT} on ${MOUNTED_ROOT} failed"
+    printf "${FAILED}: mounting ${SDCARD_DEVICE_ROOT} on ${MOUNTED_ROOT} failed. Exiting...\n"
     exit 1
   fi
   mkdir "${MOUNTED_BOOT}"
   if ! mount "${SDCARD_DEVICE_BOOT}" "${MOUNTED_BOOT}"; then
-    echo -e "[${LRED}FAILED${NC}]: mounting ${SDCARD_DEVICE_BOOT} on ${MOUNTED_BOOT} failed"
+    printf "${FAILED}: mounting ${SDCARD_DEVICE_BOOT} on ${MOUNTED_BOOT} failed. Exiting...\n"
     exit 1
   fi
+
+  # WIP: use password-protected GPG key to unlock LUKS
+  # Copy root.gpg if needed
+  # if [ -n "${LUKS_PASSPHRASE}" ]; then
+  #   mv "${WORKDIR}/root.gpg" "${MOUNTED_BOOT}/root.gpg"
+  # fi
 }
 
 download_stage3() {
-  # Creating work dir
-  if [ ! -d "${WORKDIR}" ]; then
-    mkdir "${WORKDIR}"
-  fi
-
   # Downloading stage3 tarball and signatures
   if [ ! -f "${WORKDIR}/${TARBALL##*/}" ]; then
     wget -q "${TARBALL}" -O "${WORKDIR}/${TARBALL##*/}"
@@ -303,11 +381,13 @@ download_stage3() {
 verify_stage3() {
   # Validating signatures
   if ! gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys 0xBB572E0E2D182910 >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: could not retrieve Gentoo PGP key. Do we have Interwebz?"
-    exit 1
+    if ! gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys 0xBB572E0E2D182910 >/dev/null 2>&1; then
+      printf "${FAILED}: could not retrieve Gentoo PGP key. Do we have Interwebz? Exiting...\n"
+      exit 1
+    fi
   fi
   if ! gpg --verify ${WORKDIR}/${TARBALL##*/}.DIGESTS.asc >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: tarball PGP signature mismatch - you sure you download an official stage3 tarball?"
+    printf "${FAILED}: tarball PGP signature mismatch - you sure you download an official stage3 tarball? Exiting...\n"
     exit 1
   fi
 
@@ -315,7 +395,7 @@ verify_stage3() {
   grep SHA512 -A 1 --no-group-separator ${WORKDIR}/${TARBALL##*/}.DIGESTS > ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512
   cd "${WORKDIR}"
   if ! sha512sum -c ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512 >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: tarball hash mismatch - did Gentoo mess up their hashes?"
+    printf "${FAILED}: tarball hash mismatch - did Gentoo mess up their hashes? Exiting...\n"
     exit 1
   fi
   cd - >/dev/null 2>&1
@@ -325,7 +405,7 @@ verify_stage3() {
 
 install_gentoo() {
   if ! tar xfpj "${WORKDIR}/${TARBALL##*/}" -C "${MOUNTED_ROOT}"; then
-    echo -e "[${LRED}FAILED${NC}]: could not untar ${WORKDIR}/${TARBALL##*/} to ${MOUNTED_ROOT}/usr/"
+    printf "${FAILED}: could not untar ${WORKDIR}/${TARBALL##*/} to ${MOUNTED_ROOT}/usr/. Exiting...\n"
     exit 1
   fi
 
@@ -339,7 +419,7 @@ install_portage() {
   fi
 
   if ! tar xfpj ${WORKDIR}/portage-latest.tar.bz2 -C "${MOUNTED_ROOT}/usr/"; then
-    echo -e "[${LRED}FAILED${NC}]: could not untar ${WORKDIR}/portage-latest.tar.bz2 to ${MOUNTED_ROOT}/usr/"
+    printf "${FAILED}: could not untar ${WORKDIR}/portage-latest.tar.bz2 to ${MOUNTED_ROOT}/usr/. Exiting...\n"
     exit 1
   fi
 
@@ -352,7 +432,7 @@ configure_gentoo() {
     sed -i 's/^CFLAGS.*/CFLAGS="-O2 -pipe -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard"/' "${MOUNTED_ROOT}/etc/portage/make.conf"
     echo 'EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --jobs=4 --load-average=4"' >> "${MOUNTED_ROOT}/etc/portage/make.conf"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find ${MOUNTED_ROOT}/etc/portage/make.conf"
+    printf "${FAILED}: could not find ${MOUNTED_ROOT}/etc/portage/make.conf. Exiting...\n"
     exit 1
   fi
 
@@ -360,11 +440,19 @@ configure_gentoo() {
   if [ -f "${MOUNTED_ROOT}/etc/fstab" ]; then
     sed -e '/\/dev/ s/^#*/#/' -i "${MOUNTED_ROOT}/etc/fstab" # uncomments existing entries
     echo "proc           /proc proc defaults         0 0" >> "${MOUNTED_ROOT}/etc/fstab"
-    echo "${RPI_DEVICE_BOOT} /boot vfat defaults         0 2" >> "${MOUNTED_ROOT}/etc/fstab"
+    if [ -n "${CRYPT_SWAP}" ]; then
+      echo "/dev/mapper/swap /boot vfat defaults         0 2" >> "${MOUNTED_ROOT}/etc/fstab"
+    else
+      echo "${RPI_DEVICE_BOOT} /boot vfat defaults         0 2" >> "${MOUNTED_ROOT}/etc/fstab"
+    fi
     echo "${RPI_DEVICE_SWAP} none  swap sw               0 0" >> "${MOUNTED_ROOT}/etc/fstab"
-    echo "${RPI_DEVICE_ROOT} /     ext4 defaults,noatime 0 1" >> "${MOUNTED_ROOT}/etc/fstab"
+    if [ -n "${LUKS_PASSPHRASE}" ]; then
+      echo "/dev/mapper/root /     ext4 defaults,noatime 0 1" >> "${MOUNTED_ROOT}/etc/fstab"
+    else
+      echo "${RPI_DEVICE_ROOT} /     ext4 defaults,noatime 0 1" >> "${MOUNTED_ROOT}/etc/fstab"
+    fi
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find ${MOUNTED_ROOT}/etc/fstab"
+    printf "${FAILED}: could not find ${MOUNTED_ROOT}/etc/fstab. Exiting...\n"
     exit 1
   fi
 
@@ -373,7 +461,7 @@ configure_gentoo() {
     cp "${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}" "${MOUNTED_ROOT}/etc/localtime"
     echo "${TIMEZONE}" > "${MOUNTED_ROOT}/etc/timezone"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find ${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}"
+    printf "${FAILED}: could not find ${MOUNTED_ROOT}/usr/share/zoneinfo/${TIMEZONE}. Exiting...\n"
     exit 1
   fi
 
@@ -381,7 +469,7 @@ configure_gentoo() {
   if [ -f "${MOUNTED_ROOT}/etc/shadow" ]; then
     sed -i 's/^root:.*/root::::::::/' "${MOUNTED_ROOT}/etc/shadow"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find ${MOUNTED_ROOT}/etc/shadow"
+    printf "${FAILED}: could not find ${MOUNTED_ROOT}/etc/shadow. Exiting...\n"
     exit 1
   fi
 
@@ -397,7 +485,7 @@ configure_gentoo() {
   # Permit password authentication when SSH is wanted, but no ${SSH_PUBKEY} is specified
   if [ -n "${SSH}" ] && [ ! -n "${SSH_PUBKEY}" ]; then
     if ! sed "s/^PasswordAuthentication no$/PasswordAuthentication yes/g" -i "${MOUNTED_ROOT}/etc/ssh/sshd_config"; then
-      echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config"
+      printf "${FAILED}: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config. Exiting...\n"
       exit 1
     fi
   fi
@@ -405,7 +493,7 @@ configure_gentoo() {
   # Setting a different SSH port, if specified
   if [ -n "${SSH_PORT}" ]; then
     if ! sed "s/^#Port 22$/Port ${SSH_PORT}/g" -i "${MOUNTED_ROOT}/etc/ssh/sshd_config"; then
-      echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config"
+      printf "${FAILED}: could not write to ${MOUNTED_ROOT}/etc/ssh/sshd_config. Exiting...\n"
       exit 1
     fi
   fi
@@ -428,37 +516,27 @@ configure_gentoo() {
       print "  SSH=\"'"${SSH}"'\""
       print "  SSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
       print "  HARDENED=\"'"${HARDENED}"'\""
+      print "  LUKS_PASSPHRASE=\"'"${LUKS_PASSPHRASE}"'\""
+      print "  CRYPT_SWAP=\"'"${CRYPT_SWAP}"'\""
+      print "  RPI_DEVICE_ROOT=\"'"${RPI_DEVICE_ROOT}"'\""
+      print "  RPI_DEVICE_ROOT_RAW=\"'"${RPI_DEVICE_ROOT_RAW}"'\""
       }' files/config.sh > "${MOUNTED_ROOT}/root/config.out"
     mv "${MOUNTED_ROOT}/root/config.out" "${MOUNTED_ROOT}/root/config.sh"
     chmod 0700 "${MOUNTED_ROOT}/root/config.sh"
   else
-    echo -e "[${LRED}FAILED${NC}]: could not find files/updater.sh or could not write to ${MOUNTED_ROOT}/root/"
+    printf "${FAILED}: could not find files/updater.sh or could not write to ${MOUNTED_ROOT}/root/. Exiting...\n"
     exit 1
   fi
 
-  # Comment out the s0 console (serial) for fix message in dmesg: "INIT: Id" s0 "respawning too fast".
+  # Comment out the s0 console (serial) to fix message in dmesg which is otherwise spammed on-screen: "INIT: Id" s0 "respawning too fast".
   if ! sed -e '/^s0:.*/ s/^#*/#/' -i "${MOUNTED_ROOT}/etc/inittab"; then
-    echo -e "[${LRED}FAILED${NC}]: could not write to ${MOUNTED_ROOT}/etc/inittab"
+    printf "${FAILED}: could not write to ${MOUNTED_ROOT}/etc/inittab. Exiting...\n"
     exit 1
   fi
 
   # Adding 1.1.1.1 as a nameserver for chroot env. Will most likely be changed
-  # by your local DHCP server upon first boot. Needed temporarily by
-  # /root/updater.sh in chroot session.
+  # by your local DHCP server upon first boot. Needed temporarily in chroot.
   echo "nameserver 1.1.1.1" > "${MOUNTED_ROOT}/etc/resolv.conf"
-}
-
-install_rpi_firmware() {
-  # Pulling and installing Raspberry Pi firmware.
-  if ! git clone --depth 1 git://github.com/raspberrypi/firmware/ "${FIRMWARE_DIR}" >/dev/null 2>&1; then
-    echo -e "[${LRED}FAILED${NC}]: could not git clone Raspberry Pi firmware to ${FIRMWARE_DIR}"
-    exit 1
-  fi
-  rsync -a "${FIRMWARE_DIR}/boot/" "${MOUNTED_ROOT}/boot/"
-  rsync -a "${FIRMWARE_DIR}/modules/" "${MOUNTED_ROOT}/lib/modules/"
-
-  # Boot options
-  echo "ipv6.disable=0 selinux=0 plymouth.enable=0 smsc95xx.turbo_mode=N dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=${RPI_DEVICE_ROOT} rootfstype=ext4 elevator=noop rootwait" > "${MOUNTED_BOOT}/cmdline.txt"
 }
 
 prep_chroot() {
@@ -470,12 +548,12 @@ prep_chroot() {
   # Using alien to convert deb to tgz
   if [ ! -f "${WORKDIR}/${QEMU_TGZ}" ]; then
     if ! alien -t "${WORKDIR}/${QEMU_DEB##*/}" >/dev/null 2>&1; then
-      echo -e "[${LRED}FAILED${NC}]: could not convert qemu-user-static Debian package to tarball using alien. Exiting..."
+      printf "${FAILED}: could not convert qemu-user-static Debian package to tarball using alien. Exiting...\n"
       exit 1
     fi
 
     if ! mv "${QEMU_TGZ}" "${WORKDIR}/${QEMU_TGZ}"; then
-      echo -e "[${LRED}FAILED${NC}]: could not move ${QEMU_TGZ} to ${WORKDIR}/${QEMU_TGZ}. Exiting..."
+      printf "${FAILED}: could not move ${QEMU_TGZ} to ${WORKDIR}/${QEMU_TGZ}. Exiting...\n"
       exit 1
     fi
   fi
@@ -485,20 +563,20 @@ prep_chroot() {
   fi
 
   if ! tar xzpf "${WORKDIR}/${QEMU_TGZ}" -C "${WORKDIR}/qemu-user-static"; then
-    echo -e "[${LRED}FAILED${NC}]: could not untar ${QEMU_TGZ}. Exiting..."
+    printf "${FAILED}: could not untar ${QEMU_TGZ}. Exiting...\n"
     exit 1
   fi
 
   # Copy qemu-arm-static to card in order to chroot
   if ! cp "${WORKDIR}/qemu-user-static/usr/bin/qemu-arm-static" "${MOUNTED_ROOT}/usr/bin/qemu-arm"; then
-    echo -e "[${LRED}FAILED${NC}]: could not copy "${WORKDIR}/qemu-user-static/usr/bin/qemu-arm-static" to "${MOUNTED_ROOT}/usr/bin/qemu-arm". Exiting..."
+    printf "${FAILED}: could not copy "${WORKDIR}/qemu-user-static/usr/bin/qemu-arm-static" to "${MOUNTED_ROOT}/usr/bin/qemu-arm". Exiting...\n"
     exit 1
   fi
 
   # Loading binfmt_misc kernel module
   if [ ! -d /proc/sys/fs/binfmt_misc ]; then
     if ! modprobe binfmt_misc; then
-      echo -e "[${LRED}FAILED${NC}]: could not load kernel module binfmt_misc. Exiting..."
+      printf "${FAILED}: could not load kernel module binfmt_misc. Exiting...\n"
       exit 1
     fi
   fi
@@ -528,70 +606,68 @@ eject_card() {
   for ((i=${#CHROOT_BIND_MOUNTS[@]}; i>=0; i--)); do
     umount "${MOUNTED_ROOT}/${CHROOT_BIND_MOUNTS[$i]}"
   done
-  umount "${MOUNTED_BOOT}"
   umount "${MOUNTED_ROOT}"
-  eject "${SDCARD_DEVICE}"
+  if [ -n "${LUKS_PASSPHRASE}" ]; then
+    cryptsetup luksClose "${LUKS_ROOT_NAME}"
+  fi
+  if [ -n "${IMAGE_FILE}" ]; then
+    losetup -D
+  elif [ ! -n "${IMAGE_FILE}" ]; then
+    eject "${SDCARD_DEVICE}"
+  fi
 }
 
 get_args "$@"
 get_vars
 test_args
 test_deps
-last_warning
+if [ ! -n "${IMAGE_FILE}" ]; then
+  last_warning
+fi
 
-echo
-echo -n '>>> Partitioning card ..................................... '
+printf '\n>>> Partitioning device .................................... '
 if prepare_card ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Downloading stage3 tarball ............................ '
+printf '>>> Downloading stage3 tarball ............................. '
 if download_stage3 ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Verifying stage3 tarball .............................. '
+printf '>>> Verifying stage3 tarball ............................... '
 if verify_stage3 ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Installing Gentoo ..................................... '
+printf '>>> Installing Gentoo ...................................... '
 if install_gentoo ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Installing Portage .................................... '
+printf '>>> Installing Portage ..................................... '
 if install_portage ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Configuring Gentoo .................................... '
+printf '>>> Configuring Gentoo ..................................... '
 if configure_gentoo ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo -n '>>> Installing the latest binary Raspberry Pi firmware .... '
-if install_rpi_firmware ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
-fi
-
-echo -n '>>> Preparing chroot ...................................... '
+printf '>>> Preparing chroot ....................................... '
 if prep_chroot ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo
-echo '--- Chrooting to card ---'
-echo
+printf '\n--- Chrooting to device ---\n\n'
 chroot "${MOUNTED_ROOT}" /root/config.sh
-echo
-echo '--- Returning to host ---'
-echo
+printf '\n--- Returning to host ---\n\n'
 
-echo -n '>>> Synchronising cached writes to card and eject card .... '
+printf '>>> Synchronising all pending writes and dismounting ....... '
 if eject_card ; then
-  echo -e "${BLUE}[${NC} ${LGREEN}ok${NC} ${BLUE}]${NC}"
+  printf "${OK}\n"
 fi
 
-echo
-echo "Installation complete. Try booting your Raspberry Pi."
+printf "\nInstallation complete. You can try to boot your Gentoo Pi and login\n"
+printf "with the following credentials:\n"

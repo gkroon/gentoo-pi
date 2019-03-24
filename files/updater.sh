@@ -3,17 +3,17 @@
 # Forked from https://github.com/pentoo/pentoo-overlay/blob/master/scripts/pentoo-updater.sh to be compatible with the Raspberry Pi.
 
 if [ -n "$(command -v id 2> /dev/null)" ]; then
-	USERID="$(id -u 2> /dev/null)"
+  USERID="$(id -u 2> /dev/null)"
 fi
 
 if [ -z "${USERID}" ] && [ -n "$(id -ru)" ]; then
-	USERID="$(id -ru)"
+  USERID="$(id -ru)"
 fi
 
 if [ -n "${USERID}" ] && [ "${USERID}" != "0" ]; then
-	printf "Run it as root\n" ; exit 1;
+  printf "Run it as root\n" ; exit 1;
 elif [ -z "${USERID}" ]; then
-	printf "Unable to determine user id, permission errors may occur.\n"
+  printf "Unable to determine user id, permission errors may occur.\n"
 fi
 
 . /etc/profile
@@ -31,7 +31,7 @@ check_profile () {
       arch=$(uname -m)
       if [ "${arch}" = "armv7*" ]; then
         ARCH="arm"
-	ARCH_VER="armv7a"
+        ARCH_VER="armv7a"
       else
         failure=1
       fi
@@ -42,17 +42,17 @@ check_profile () {
         hardening="default"
       fi
       if [ "${failure}" = "0" ]; then
-	if [ "${hardening}" = "hardened" ]; then
-	  if ! eselect profile set ${hardening}/linux/${ARCH}/${ARCH_VER}; then
+        if [ "${hardening}" = "hardened" ]; then
+    if ! eselect profile set ${hardening}/linux/${ARCH}/${ARCH_VER}; then
             failure="1"
           fi
         elif [ "${hardening}" = "default" ]; then
           if ! eselect profile set ${hardening}/linux/${ARCH}/13.0/${ARCH_VER}; then
             failure="1"
           fi
-	else
-	  failure="1"
-	fi
+        else
+    failure="1"
+        fi
       fi
     fi
     if [ "${failure}" = "1" ]; then
@@ -66,24 +66,73 @@ check_profile () {
 }
 
 update_kernel() {
-  FIRMWARE_DIR=/opt/firmware
-  ROOT_DEVICE=$(lsblk -nlo NAME,FSTYPE,MOUNTPOINT -p | grep ' /$' | cut -d" " -f 1)
-  ROOT_FSTYPE=$(lsblk -nlo NAME,FSTYPE,MOUNTPOINT -p | grep ' /$' | cut -d" " -f 2)
-  printf "Pulling latest firmware...\n"
-  if [ -d ${FIMRWARE_DIR} ]; then
-    git -C ${FIRMWARE_DIR} pull
+  arch=$(uname -m)
+  if ! { [ "${arch}" = "arm" ] || [ "${arch}" = "armv7l" ]; }; then
+    printf "Arch ${arch} isn't supported for automatic kernel updating, skipping...\n."
+    return 1
+  fi
+
+  bestkern="$(qlist $(portageq best_version / raspberrypi-sources) | grep 'init/Kconfig' | awk -F'/' '{print $4}' | cut -d'-' -f 2-)"
+  if [ -z "${bestkern}" ]; then
+    printf "Failed to find raspberrypi-sources installed, is this a Raspberry Pi system?\n"
+    return 1
+  fi
+
+  #next we fix the symlink
+  if [ "$(readlink /usr/src/linux)" != "linux-${bestkern}" ]; then
+    unlink /usr/src/linux
+    ln -s "linux-${bestkern}" /usr/src/linux
+  fi
+  currkern="$(uname -r)"
+  if [ "${currkern}" != "${bestkern}" ]; then
+    printf "Currently running kernel ${currkern} is out of date.\n"
+    if [ -x "/usr/src/linux-${bestkern}/vmlinux" ] && [ -r "/lib/modules/${bestkern}-v7+/modules.dep" ]; then
+      if [ ! -e /usr/src/linux/.raspberrypi-updater-running ]; then
+        printf "Kernel ${bestkern} appears ready to go, please reboot when convenient.\n"
+        return 1
+      else
+        printf "Updated kernel ${bestkern} available, building...\n"
+      fi
+    else
+      printf "Updated kernel ${bestkern} available, building...\n"
+    fi
   else
-    mkdir ${FIRMWARE_DIR}
-    git clone --depth 1 https://github.com/raspberrypi/firmware.git ${FIRMWARE_DIR}
+    printf "Found an updated config for ${bestkern}, rebuilding...\n"
   fi
-  if ! grep -qs "/boot" /proc/mounts; then
-    printf "Mounting /boot.\n"
-    mount /boot
+
+  #then we set genkernel options as needed
+  genkernelopts="--no-mrproper --disklabel --microcode --compress-initramfs-type=gzip"
+  if grep -q btrfs /etc/fstab || grep -q btrfs /proc/cmdline; then
+    genkernelopts="${genkernelopts} --btrfs"
   fi
-  printf "Installing latest firmware kernel and modules.\n"
-  rsync -a ${FIRMWARE_DIR}/boot/ /boot/
-  rsync -a ${FIRMWARE_DIR}/modules/ /lib/modules/
-  echo "ipv6.disable=0 selinux=0 plymouth.enable=0 smsc95xx.turbo_mode=N dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=${ROOT_DEVICE} rootfstype=${ROOT_FSTYPE} elevator=noop rootwait" > /boot/cmdline.txt
+  if grep -q zfs /etc/fstab || grep -q zfs /proc/cmdline; then
+    genkernelopts="${genkernelopts} --zfs"
+  fi
+  if grep -q 'ext[234]' /etc/fstab; then
+    genkernelopts="${genkernelopts} --e2fsprogs"
+  fi
+  if grep -q gpg /proc/cmdline; then
+    genkernelopts="${genkernelopts} --luks --gpg"
+  elif grep -q luks /etc/crypttab || grep -E '^swap|^source' /etc/conf.d/dmcrypt; then
+    genkernelopts="${genkernelopts} --luks"
+  fi
+  #then we go nuts
+  touch /usr/src/linux/.raspberrypi-updater-running
+  if genkernel ${genkernelopts} --callback="emerge @module-rebuild" all; then
+    mv /boot/kernel-genkernel-* /boot/kernel7.img
+    mv /boot/initramfs-genkernel-* /boot/initramfs.gz
+    cp /usr/src/linux-${bestkern}/arch/arm/boot/dts/*.dtb /boot/
+    cp /usr/src/linux-${bestkern}/arch/arm/boot/dts/overlays/* /boot/overlays/
+    wget https://github.com/raspberrypi/firmware/raw/master/boot/bootcode.bin -O /boot/bootcode.bin
+    wget https://github.com/raspberrypi/firmware/raw/master/boot/fixup.dat -O /boot/fixup.dat
+    wget https://github.com/raspberrypi/firmware/raw/master/boot/start.elf -O /boot/start.elf
+    printf "Kernel ${bestkern} built successfully, please reboot when convenient.\n"
+    rm -f /usr/src/linux/.raspberrypi-updater-running
+    return 0
+  else
+    printf "Kernel ${bestkern} failed to build, please see logs above.\n"
+    return 1
+  fi
 }
 
 safe_exit() {
