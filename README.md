@@ -46,7 +46,7 @@ Options:
       --hardened       optionally switch to a hardened profile 
                        (experimental)
   -R, --encrypt-root   optionally specify your preferred password to 
-                       encrypt the root partition with
+                       encrypt the root partition with (e.g. correcthorsebatterystaple)
   -S, --encrypt-swap   optionally encrypt the swap partition with a 
                        random IV each time the system boots
 
@@ -74,37 +74,38 @@ Number  Start   End     Size    Type     File system     Flags
 
 Do you wish to continue formatting this device? [yes|no] yes
 
->>> Partitioning device .................................... [ ok ]
->>> Downloading stage3 tarball ............................. [ ok ]
->>> Verifying stage3 tarball ............................... [ ok ]
->>> Installing Gentoo ...................................... [ ok ]
->>> Installing Portage ..................................... [ ok ]
->>> Configuring Gentoo ..................................... [ ok ]
->>> Installing the latest binary Raspberry Pi firmware ..... [ ok ]
->>> Preparing chroot ....................................... [ ok ]
+>>> Partitioning device                                      [ ok ]
+>>> Downloading stage3 tarball                               [ ok ]
+>>> Verifying stage3 tarball                                 [ ok ]
+>>> Installing Gentoo                                        [ ok ]
+>>> Installing Portage                                       [ ok ]
+>>> Configuring Gentoo                                       [ ok ]
+>>> Installing the latest binary Raspberry Pi firmware       [ ok ]
+>>> Preparing chroot                                         [ ok ]
 
 --- Chrooting to device ---
 
->>> Changing passwd for root ............................... [ ok ]
->>> Creating new user ...................................... [ ok ]
->>> Changing passwd for new user ........................... [ ok ]
->>> Setting hostname ....................................... [ ok ]
->>> Enabling eth0 to start at boot ......................... [ ok ]
->>> Synchronising Portage .................................. [ ok ]
->>> Updating needed packages (could take a few hours) ...... [ ok ]
->>> Installing needed packages (could take a few hours) .... [ ok ]
->>> Configuring packages ................................... [ ok ]
->>> Compiling kernel (could take a few hours ) ............. [ ok ]
->>> Enabling services ...................................... [ ok ]
+>>> Changing passwd for root                                 [ ok ]
+>>> Creating new user                                        [ ok ]
+>>> Changing passwd for new user                             [ ok ]
+>>> Setting hostname                                         [ ok ]
+>>> Enabling eth0 to start at boot                           [ ok ]
+>>> Synchronising Portage                                    [ ok ]
+>>> Updating needed packages (could take a few hours)        [ ok ]
+>>> Installing needed packages (could take a few hours)      [ ok ]
+>>> Configuring packages                                     [ ok ]
+>>> Compiling kernel (could take a few hours )               [ ok ]
+>>> Enabling services                                        [ ok ]
 
 --- Returning to host ---
 
->>> Synchronising all pending writes and dismounting ....... [ ok ]
+>>> Synchronising all pending writes and dismounting         [ ok ]
 
 Installation complete. You can try to boot your Gentoo Pi and login
 with the following credentials:
 * pi:SXGTR6_-921UheFd
 * root:QLviGnB8l21K1-L0
+
 ```
 
 Then, after the Gentoo Pi is successfully booted, you should be able to login as your new user.
@@ -135,22 +136,13 @@ This script assumes any amd64 Linux host, using either OpenRC or systemd (to sta
 ## How to contribute
 If you wish to contribute (you are encouraged!), feel free to create issues, or fork and create pull requests.
 
-## Open to do list
+## To do list
 If you wish to contribute, the following items are identified as useful additions that haven't been "claimed" by anyone yet.
 
-1. Add argument to write to an image file instead of to a card;
-2. Simplify the installation experience (ncurses?);
-3. Randomly pick download mirrors (rotate ccTLDs?);
-4. Add argument to build arm64, instead of default armv7;
-5. Add arguments to specify boot, swap, root partition sizes.
-
-N.b.: This check list will be moved to separate issues, or another convenient tracking solution when multiple people start to contribute. At the moment this list is only for my own convenience.
-
-## Claimed to do list
-To avoid working on the same task, the following items have been "claimed" by contributors to work on. Please coordinate amongst yourselves when multiple people are involved on one item.
-
-gkroon:
-1. Randomly pick download mirrors (rotate ccTLDs?).
+1. Simplify the installation experience (ncurses?);
+2. Add argument to build arm64, instead of default armv7;
+3. Add arguments to specify boot, swap, root partition sizes;
+4. Create non-boot partitions inside LVM.
 
 N.b.: This check list will be moved to separate issues, or another convenient tracking solution when multiple people start to contribute. At the moment this list is only for my own convenience.
 
