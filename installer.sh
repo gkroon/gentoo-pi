@@ -25,7 +25,7 @@ print_help() {
   echo "                       Europe/Amsterdam)"
   echo "  -u, --username       specify your preferred username (e.g. larry)"
   echo "  -f, --fullname       specify your full name (e.g. \"Larry the Cow\")"
-  echo "      --tarball-url    optionally set a different stage3 tarball URL "
+  echo "  -T, --tarball-url    optionally set a different stage3 tarball URL "
   echo "                       (e.g. http://distfiles.gentoo.org/releases/\\"
   echo "                       arm/autobuilds/20180831/\\"
   echo "                       stage3-armv7a_hardfp-20180831.tar.bz2)"
@@ -49,8 +49,8 @@ get_args() {
     case "$1" in
       -h|--help) print_help ;;
       -d|--device) SDCARD_DEVICE="${2}" ;;
-      -i|--image) IMAGE_FILE="$(readlink -m "${2}")" ;;
-         --tarball-url) TARBALL="${2}" ;;
+      -i|--image) IMAGE_FILE=$(readlink -m "${2}") ;;
+      -T|--tarball-url) TARBALL="${2}" ;;
       -H|--hostname) HOSTNAME="${2}" ;;
       -t|--timezone) TIMEZONE="${2}" ;;
       -u|--username) NEW_USER="${2}" ;;
@@ -62,7 +62,7 @@ get_args() {
          --ssh-port) SSH_PORT="{2}" ;;
          --hardened) HARDENED="1" ;;
       -R|--encrypt-root) LUKS_PASSPHRASE="${2}" ;;
-      -S|--encrypt-swap) CRYPT_SWAP="${2}" ;;
+      -S|--encrypt-swap) CRYPT_SWAP="1" ;;
     esac
     shift
   done
@@ -156,12 +156,12 @@ test_args() {
   if [ ! -n "${TARBALL}" ]; then
     LATEST_TARBALL="$(curl -s http://distfiles.gentoo.org/releases/arm/autobuilds/latest-stage3-armv7a_hardfp.txt | tail -n 1 | awk '{print $1}')"
     TARBALL="http://distfiles.gentoo.org/releases/arm/autobuilds/${LATEST_TARBALL}"
-    if [[ ! $(curl -Is ${TARBALL}) != *200\ OK ]]; then
-      printf "Latest stage3 tarball not found - please file a bug? Exiting...\n"
+    if ! curl -Ifs ${TARBALL} >/dev/null 2>&1; then
+      printf "Latest tarball not found - please file a bug? Exiting...\n"
       exit 1
     fi
-  elif [[ ! $(curl -Is ${TARBALL}) != *200\ OK ]]; then
-    printf "Overridden stage3 tarball not found. Exiting...\n"
+  elif ! curl -Ifs ${TARBALL} >/dev/null 2>&1; then
+    printf "Overridden tarball not found. Exiting...\n"
     exit 1
   fi
 
@@ -224,18 +224,20 @@ last_warning() {
   if [ -b "${SDCARD_DEVICE}" ]; then
     printf "\n${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}\n\n"
     parted "${SDCARD_DEVICE}" print
-  elif [ -n "${IMAGE_FILE}" ]; then
+  elif [ -f "${IMAGE_FILE}" ]; then
     printf "\n${YELLOW}* WARNING: This will format ${IMAGE_FILE}:${NC}\n\n"
     parted "${IMAGE_FILE}" print
   fi
-  while true; do
-    read -p "Do you wish to continue formatting this device? [yes|no] " yn
-    case $yn in
-      [Yy]* ) break ;;
-      [Nn]* ) exit 0 ;;
-      * ) echo "Please answer yes or no." ;;
-    esac
-  done
+  if [ -f "${IMAGE_FILE}" ] || [ -b "${SDCARD_DEVICE}" ]; then
+    while true; do
+      read -p "Do you wish to continue formatting this device? [yes|no] " yn
+      case $yn in
+        [Yy]* ) break ;;
+        [Nn]* ) exit 0 ;;
+        * ) echo "Please answer yes or no." ;;
+      esac
+    done
+  fi
 }
 
 prepare_card() {
@@ -273,8 +275,10 @@ prepare_card() {
 
   if [ -n "${IMAGE_FILE}" ]; then
     losetup -D
-    if [ -f "${IMAGE_FILE}" ]; then
-      rm "${IMAGE_FILE}"
+    if [ -n "${IMAGE_FILE}" ]; then
+      if [ -f "${IMAGE_FILE}" ]; then
+        rm "${IMAGE_FILE}"
+      fi
       if fallocate -l 16G "${IMAGE_FILE}"; then
         SDCARD_DEVICE=/dev/loop0
         SDCARD_DEVICE_BOOT="${SDCARD_DEVICE}p1"
@@ -364,8 +368,8 @@ prepare_card() {
   # fi
 }
 
-download_stage3() {
-  # Downloading stage3 tarball and signatures
+download_tarball() {
+  # Downloading tarball and signatures
   if [ ! -f "${WORKDIR}/${TARBALL##*/}" ]; then
     wget -q "${TARBALL}" -O "${WORKDIR}/${TARBALL##*/}"
   fi
@@ -378,14 +382,17 @@ download_stage3() {
     wget -q "${TARBALL}.DIGESTS" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS"
   fi
 
+  # I realised not all tarball hashes are signed
   if [ ! -f "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
-    wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc"
+    if curl -Ifs "${TARBALL}.DIGESTS.asc" >/dev/null 2>&1; then
+      wget -q "${TARBALL}.DIGESTS.asc" -O "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc"
+    fi
   fi
 
   return 0
 }
 
-verify_stage3() {
+verify_tarball() {
   # Validating signatures
   if ! gpg --keyserver hkps.pool.sks-keyservers.net --recv-keys 0xBB572E0E2D182910 >/dev/null 2>&1; then
     if ! gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys 0xBB572E0E2D182910 >/dev/null 2>&1; then
@@ -394,20 +401,23 @@ verify_stage3() {
     fi
   fi
 
-  if ! gpg --verify "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" >/dev/null 2>&1; then
-    printf "${FAILED}\n\nTarball PGP signature mismatch - you sure you download an official stage3 tarball? Exiting...\n"
-    exit 1
+  # I realised not all tarball hashes are signed
+  if [ -f "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" ]; then
+    if ! gpg --verify "${WORKDIR}/${TARBALL##*/}.DIGESTS.asc" >/dev/null 2>&1; then
+      printf "${FAILED}\n\nTarball PGP signature mismatch - you sure you download an official tarball? Exiting...\n"
+      exit 1
+    fi
   fi
 
   # We have to omit non-H hashes first to verify integrity using H, where H is
   # the chosen hash function for verification.
   grep SHA512 -A 1 --no-group-separator "${WORKDIR}/${TARBALL##*/}.DIGESTS" > "${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512"
-  cd "${WORKDIR}" #|| printf "${FAILED}\n\nCannot cd to ${WORKDIR}" ; exit 1
+  cd "${WORKDIR}" || $(printf "${FAILED}\n\nCannot cd to ${WORKDIR}" ; exit 1)
   if ! sha512sum -c ${WORKDIR}/${TARBALL##*/}.DIGESTS.sha512 >/dev/null 2>&1; then
     printf "${FAILED}\n\nTarball hash mismatch - did Gentoo mess up their hashes? Exiting...\n"
     exit 1
   fi
-  cd - >/dev/null 2>&1 #|| printf "${FAILED}\n\nCannot cd back to working directory" ; exit 1
+  cd - >/dev/null 2>&1 || $(printf "${FAILED}\n\nCannot cd back to working directory" ; exit 1)
 
   return 0
 }
@@ -639,13 +649,13 @@ if prepare_card ; then
   printf "${OK}\n"
 fi
 
-printf '>>> Downloading stage3 tarball\t' | expand -t 60
-if download_stage3 ; then
+printf '>>> Downloading tarball\t' | expand -t 60
+if download_tarball ; then
   printf "${OK}\n"
 fi
 
-printf '>>> Verifying stage3 tarball\t' | expand -t 60
-if verify_stage3 ; then
+printf '>>> Verifying tarball\t' | expand -t 60
+if verify_tarball ; then
   printf "${OK}\n"
 fi
 

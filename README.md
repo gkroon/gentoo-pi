@@ -35,7 +35,7 @@ Options:
                        Europe/Amsterdam)
   -u, --username       specify your preferred username (e.g. larry)
   -f, --fullname       specify your full name (e.g. "Larry the Cow")
-      --tarball-url    optionally set a different stage3 tarball URL 
+  -T, --tarball-url    optionally set a different stage3 tarball URL 
                        (e.g. http://distfiles.gentoo.org/releases/\
                        arm/autobuilds/20180831/\
                        stage3-armv7a_hardfp-20180831.tar.bz2)
