@@ -70,7 +70,7 @@ get_args() {
 
 get_vars() {
   # Terminal colours
-  #GREEN='\033[0;32m'
+  GREEN='\033[0;32m'
   BLUE='\033[0;34m'
   #MAGENTA='\033[0;35m'
   LGREEN='\033[1;32m'
@@ -222,10 +222,10 @@ test_deps() {
 last_warning() {
   # Last warning before formatting ${SDCARD_DEVICE} or ${IMAGE_FILE}
   if [ -b "${SDCARD_DEVICE}" ]; then
-    printf "\n${YELLOW}* WARNING: This will format ${SDCARD_DEVICE}:${NC}\n\n"
+    printf "\n${YELLOW}* WARNING:${NC} This will format ${SDCARD_DEVICE}:\n\n"
     parted "${SDCARD_DEVICE}" print
   elif [ -f "${IMAGE_FILE}" ]; then
-    printf "\n${YELLOW}* WARNING: This will format ${IMAGE_FILE}:${NC}\n\n"
+    printf "\n${YELLOW}* WARNING:${NC} This will format ${IMAGE_FILE}:\n\n"
     parted "${IMAGE_FILE}" print
   fi
   if [ -f "${IMAGE_FILE}" ] || [ -b "${SDCARD_DEVICE}" ]; then
@@ -690,5 +690,5 @@ fi
 
 printf "\nInstallation complete. You can try to boot your Gentoo Pi and login\n"
 printf "with the following credentials:\n"
-printf "* ${NEW_USER}:${NEW_USER_PASSWD}\n"
-printf "* root:${ROOT_PASSWD}\n"
+printf "${GREEN}*${NC} ${NEW_USER}:${NEW_USER_PASSWD}\n"
+printf "${GREEN}*${NC} root:${ROOT_PASSWD}\n"

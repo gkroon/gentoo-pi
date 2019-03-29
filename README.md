@@ -80,7 +80,6 @@ Do you wish to continue formatting this device? [yes|no] yes
 >>> Installing Gentoo                                        [ ok ]
 >>> Installing Portage                                       [ ok ]
 >>> Configuring Gentoo                                       [ ok ]
->>> Installing the latest binary Raspberry Pi firmware       [ ok ]
 >>> Preparing chroot                                         [ ok ]
 
 --- Chrooting to device ---
