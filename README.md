@@ -50,11 +50,12 @@ Options:
       --hardened       optionally switch to a hardened profile 
                        (experimental)
   -R, --encrypt-root   optionally specify your preferred password to 
-                       encrypt the root partition with (e.g. correcthorsebatterystaple)
+                       encrypt the root partition with (e.g. 
+                       correcthorsebatterystaple)
   -S, --encrypt-swap   optionally encrypt the swap partition with a 
                        random IV each time the system boots
-  -V, --verify         specify whether to verify tarball before "
-                       installing with a boolean (e.g. 0)"
+  -V, --verify         specify whether to verify tarball before 
+                       installing with a boolean (e.g. 0)
 
 ```
 
