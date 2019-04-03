@@ -1,5 +1,5 @@
 # A script to install Gentoo on a Raspberry Pi 2/3
-The aim of this project is to create a minimal, vanilla Gentoo installation for the Raspberry Pi 2/3, plus necessary configurations to properly boot. It achieves this by fetching the latest official armv7a hardfp stage3 tarball from Gentoo, and installs it on your card. It then proceeds with some necessary configurations of your own choosing, partly by chrooting using qemu-binfmt.
+The aim of this project is to create a minimal, vanilla Gentoo installation for the Raspberry Pi 2/3, plus necessary configurations to properly boot. It achieves this by fetching the latest official armv7a hardfp stage3 tarball from Gentoo (or any other of your choosing if specified), and installs it on your card. It then proceeds with some necessary configurations of your own choosing, partly by chrooting using qemu-binfmt.
 
 Among those necessary configurations, these are the most important to note:
 1. Compiled Raspberry Pi kernel, using `sys-kernel/raspberrypi-sources`, its default kernel configuration (with added `CONFIG_CRYPTO_XTS=y` for if you wish to use LUKS);
@@ -35,10 +35,14 @@ Options:
                        Europe/Amsterdam)
   -u, --username       specify your preferred username (e.g. larry)
   -f, --fullname       specify your full name (e.g. "Larry the Cow")
+  -a, --architecture   optionally specify the desired architecture 
+                       (e.g. arm64)
+  -s, --stage          optionally specify the desired stage (e.g. 4)
   -T, --tarball-url    optionally set a different stage3 tarball URL 
                        (e.g. http://distfiles.gentoo.org/releases/\
                        arm/autobuilds/20180831/\
-                       stage3-armv7a_hardfp-20180831.tar.bz2)
+                       stage3-armv7a_hardfp-20180831.tar.bz2). Please 
+                       update --arch and --stage accordingly
   -s, --ssh            optionally enable SSH
       --ssh-port       optionally set a different SSH port (e.g. 2222)
       --ssh-pubkey     optionally set your ssh pubkey (e.g. 
@@ -49,6 +53,8 @@ Options:
                        encrypt the root partition with (e.g. correcthorsebatterystaple)
   -S, --encrypt-swap   optionally encrypt the swap partition with a 
                        random IV each time the system boots
+  -V, --verify         specify whether to verify tarball before "
+                       installing with a boolean (e.g. 0)"
 
 ```
 
@@ -57,7 +63,7 @@ Note: the `--hardened` argument is not yet stable and has not been extensively t
 ## Example
 `installer.sh` needs to be run as root, and also expects the `files` directory, with its underlying scripts, within its working directory. The following output shows a successful installation using my own Gentoo desktop:
 ```
-# ./installer.sh -d /dev/sdd -s --ssh-pubkey ~/.ssh/id_ed25519.pub
+# ./installer.sh -d /dev/sdd -a 64 -s 4 --ssh --ssh-pubkey ~/.ssh/id_ed25519.pub
 
 * WARNING: This will format /dev/sdd:
 
@@ -74,31 +80,31 @@ Number  Start   End     Size    Type     File system     Flags
 
 Do you wish to continue formatting this device? [yes|no] yes
 
->>> Partitioning device                                      [ ok ]
->>> Downloading stage3 tarball                               [ ok ]
->>> Verifying stage3 tarball                                 [ ok ]
->>> Installing Gentoo                                        [ ok ]
->>> Installing Portage                                       [ ok ]
->>> Configuring Gentoo                                       [ ok ]
->>> Preparing chroot                                         [ ok ]
+ * Partitioning device ...                                  [ ok ]
+ * Downloading tarball ...                                  [ ok ]
+ * Verifying tarball ...                                    [ ok ]
+ * Installing Gentoo ...                                    [ ok ]
+ * Installing Portage ...                                   [ ok ]
+ * Configuring Gentoo ...                                   [ ok ]
+ * Preparing chroot ...                                     [ ok ]
 
 --- Chrooting to device ---
 
->>> Changing passwd for root                                 [ ok ]
->>> Creating new user                                        [ ok ]
->>> Changing passwd for new user                             [ ok ]
->>> Setting hostname                                         [ ok ]
->>> Enabling eth0 to start at boot                           [ ok ]
->>> Synchronising Portage                                    [ ok ]
->>> Updating needed packages (could take a few hours)        [ ok ]
->>> Installing needed packages (could take a few hours)      [ ok ]
->>> Configuring packages                                     [ ok ]
->>> Compiling kernel (could take a few hours )               [ ok ]
->>> Enabling services                                        [ ok ]
+ * Changing passwd for root ...                             [ ok ]
+ * Creating new user ...                                    [ ok ]
+ * Changing passwd for new user ...                         [ ok ]
+ * Setting hostname ...                                     [ ok ]
+ * Enabling eth0 to start at boot ...                       [ ok ]
+ * Synchronising Portage ...                                [ ok ]
+ * Updating needed packages (could take a few hours) ...    [ ok ]
+ * Installing needed packages (could take a few hours) ...  [ ok ]
+ * Configuring packages ...                                 [ ok ]
+ * Compiling kernel (could take a few hours ) ...           [ ok ]
+ * Enabling services ...                                    [ ok ]
 
 --- Returning to host ---
 
->>> Synchronising all pending writes and dismounting         [ ok ]
+ * Synchronising all pending writes and dismounting ...     [ ok ]
 
 Installation complete. You can try to boot your Gentoo Pi and login
 with the following credentials:
@@ -112,8 +118,8 @@ Then, after the Gentoo Pi is successfully booted, you should be able to login as
 ## Dependencies
 This script assumes any amd64 Linux host, using either OpenRC or systemd (to start the qemu-binfmt service to use qemu/chroot), with the following packages:
 
-1. alien (app-arch/alien);
-2. awk (virtual/awk);
+1. awk (virtual/awk);
+2. bash (app-shells/bash);
 3. coreutils (sys-apps/coreutils);
 4. cryptsetup (sys-fs/cryptsetup);
 5. curl (net-misc/curl);
@@ -124,13 +130,14 @@ This script assumes any amd64 Linux host, using either OpenRC or systemd (to sta
 10. gpg (app-crypt/gnupg);
 11. grep (sys-apps/grep);
 12. kmod (sys-apps/kmod);
-13. parted (sys-block/parted);
-14. qemu (app-emulation/qemu);
-15. rsync (net-misc/rsync);
-16. sed (sys-apps/sed);
-17. tar (app-arch/tar);
-18. util-linux (sys-apps/util-linux);
-19. wget (net-misc/wget).
+13. ncurses (sys-libs/ncurses);
+14. parted (sys-block/parted);
+15. qemu (app-emulation/qemu);
+16. rsync (net-misc/rsync);
+17. sed (sys-apps/sed);
+18. tar (app-arch/tar);
+19. util-linux (sys-apps/util-linux);
+20. wget (net-misc/wget).
 
 ## How to contribute
 If you wish to contribute (you are encouraged!), feel free to create issues, or fork and create pull requests.
@@ -138,14 +145,13 @@ If you wish to contribute (you are encouraged!), feel free to create issues, or 
 ## To do list
 If you wish to contribute, the following items are identified as useful additions that haven't been "claimed" by anyone yet.
 
-1. Simplify the installation experience (ncurses?);
-2. Add argument to build arm64, instead of default armv7;
-3. Add arguments to specify boot, swap, root partition sizes;
-4. Create non-boot partitions inside LVM.
+1. Simplify the installation experience (full ncurses wizard?);
+2. Add arguments to specify boot, swap, root partition sizes;
+3. Create non-boot partitions inside LVM;
+4. Use password protected GPG key to unlock LUKS.
 
 N.b.: This check list will be moved to separate issues, or another convenient tracking solution when multiple people start to contribute. At the moment this list is only for my own convenience.
 
 ## Raw ideas
 1. Ansible/Python refactor?
-2. If building arm64, maybe use stage4 instead of stage3?
-3. Maybe add an argument for increased verbosity, to keep track of each installation phase?
+2. Maybe add an argument for increased verbosity, to keep track of each installation phase?
