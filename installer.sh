@@ -580,6 +580,7 @@ configure_gentoo() {
       print "  NEW_USER_PASSWD=\"'"${NEW_USER_PASSWD}"'\""
       print "  NEW_USER_FULL_NAME=\"'"${NEW_USER_FULL_NAME}"'\""
       print "  ROOT_PASSWD=\"'"${ROOT_PASSWD}"'\""
+      print "  ARCH=\"'"${ARCH}"'\""
       print "  SSH=\"'"${SSH}"'\""
       print "  SSH_PUBKEY=\"'"${SSH_PUBKEY}"'\""
       print "  HARDENED=\"'"${HARDENED}"'\""
@@ -715,7 +716,7 @@ if prep_chroot ; then
 fi
 
 printf '\n--- Chrooting to device ---\n\n'
-chroot "${MOUNTED_ROOT}" /root/config.sh || (printf "Could not (finish) chroot. Exiting..." && exit 1)
+chroot "${MOUNTED_ROOT}" /root/config.sh || exit 1
 printf '\n--- Returning to host ---\n\n'
 
 printf ' %s*%s Synchronising all pending writes and dismounting ... \t' "${LGREEN}" "${NC}" | expand -t 60

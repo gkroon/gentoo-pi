@@ -200,11 +200,26 @@ configure_packages() {
 
 compile_kernel() {
   bestkern="$(qlist "$(portageq best_version / raspberrypi-sources)" | grep 'init/Kconfig' | awk -F'/' '{print $4}' | cut -d'-' -f 2-)"
-  mkdir /etc/kernels
+  mkdir /etc/kernels >/dev/null 2>&1
   sed 's/CONFIG_CRYPTO_XTS=m/CONFIG_CRYPTO_XTS=y/' /usr/src/linux/arch/arm/configs/bcm2709_defconfig > /etc/kernels/config.arm
-  if ! KERNEL=kernel7 genkernel --clean --mrproper --mountboot --save-config --color --makeopts=-j4 --luks --gpg --kernel-config=/etc/kernels/config.arm all >/dev/null 2>&1; then
-    prnitf "${FAILED}\n\nCould not compile kernel. Exiting...\n"
-    exit 1
+  if [ "${ARCH}" -eq "32" ]; then
+    if ! KERNEL=kernel7 genkernel --clean --mrproper --mountboot --save-config --color --makeopts=-j4 --luks --gpg --kernel-config=/etc/kernels/config.arm all >/dev/null 2>&1; then
+      printf "${FAILED}\n\nCould not compile kernel. Exiting...\n"
+      exit 1
+    fi
+  elif [ "${ARCH}" -eq "64" ]; then
+    if ! cp "/usr/share/genkernel/arch/arm/" "/usr/share/genkernel/arch/arm64"; then
+      printf "${FAILED}\n\nCould not copy genkernel arm arch folder to new arm64 arch folder. Exiting...\n"
+      exit 1
+    fi
+    if ! sed -i 's/arch\/arm\//arch\/arm64\//' /usr/share/genkernel/arch/arm64/config.sh; then
+      printf "${FAILED}\n\nCould not edit new arm64 genkernel config.sh. Exiting...\n"
+      exit 1
+    fi
+    if ! KERNEL=kernel7 genkernel --arch-override=arm64 --clean --mrproper --mountboot --save-config --color --makeopts=-j4 --luks --gpg --kernel-config=/etc/kernels/config.arm all >/dev/null 2>&1; then
+      printf "${FAILED}\n\nCould not compile kernel. Exiting...\n"
+      exit 1
+    fi
   fi
   mv /boot/kernel-genkernel-* /boot/kernel7.img
   mv /boot/initramfs-genkernel-* /boot/initramfs.gz
