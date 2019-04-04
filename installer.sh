@@ -96,9 +96,9 @@ get_vars() {
   # shell commands. In case of any errors, refer to the README.md to verify the
   # dependencies on your system.
   DEPS=(
-    alien awk bash chroot cat chmod cp cryptsetup curl eject file git gpg \
-    grep mkdir mkfs.ext4 mkfs.vfat mkswap modprobe mount parted qemu-x86_64 \
-    rm rsync sed sha512sum sync tar tput umount useradd wget
+    awk bash chroot cat chmod cp cryptsetup curl eject file git gpg grep \
+    mkdir mkfs.ext4 mkfs.vfat mkswap modprobe mount parted qemu-x86_64 rm \
+    rsync sed sha512sum sync tar tput umount useradd wget
   )
 
   # The following partitions will be created, on "${SDCARD_DEVICE}"
@@ -727,4 +727,4 @@ fi
 printf "\nInstallation complete. You can try to boot your Gentoo Pi and login\n"
 printf "with the following credentials:\n"
 printf "%s*%s %s:%s\n" "${LGREEN}" "${NC}" "${NEW_USER}" "${NEW_USER_PASSWD}"
-printf "%s*%s root:%s\n" "${LGREEN}" "${NC}" "${ROOT_PASSWD}"
+printf "%s*%s root:%s\n" "${LGREEN}" "${NC}" "${ROOT_PASSWD}\n"
